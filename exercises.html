@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Exercises — Ironlog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F4F2EC">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <div class="wordmark"><span class="dot"></span>Ironlog</div>
+    <div class="page-eyebrow">Exercise library</div>
+  </div>
+  <a href="index.html" class="user-chip" style="text-decoration:none;">← Home</a>
+</header>
+
+<div class="app-shell">
+<main>
+
+  <section>
+    <div class="card">
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field" style="flex:2;">
+          <label for="newName">New exercise name</label>
+          <input type="text" id="newName" placeholder="e.g. Cable Lateral Raise">
+        </div>
+        <div class="field">
+          <label for="newMuscle">Muscle</label>
+          <select id="newMuscle"></select>
+        </div>
+        <button class="btn btn-primary" id="addBtn" style="margin-bottom:16px;">Add</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="groupsWrap">
+    <div class="muted center" style="padding:24px 0;">Loading…</div>
+  </section>
+
+</main>
+</div>
+
+<script type="module" src="js/exercises.js"></script>
+</body>
+</html>

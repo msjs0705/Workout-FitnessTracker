@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Body Weight — Ironlog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F4F2EC">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div>
+    <div class="wordmark"><span class="dot"></span>Ironlog</div>
+    <div class="page-eyebrow">Body weight</div>
+  </div>
+  <a href="index.html" class="user-chip" style="text-decoration:none;">← Home</a>
+</header>
+
+<div class="app-shell">
+<main>
+
+  <section>
+    <div class="card">
+      <div class="field-row" style="align-items:flex-end;">
+        <div class="field">
+          <label for="dateInput">Date</label>
+          <input type="date" id="dateInput">
+        </div>
+        <div class="field">
+          <label for="weightInput">Weight (kg)</label>
+          <input type="number" inputmode="decimal" step="0.1" id="weightInput" placeholder="72.5">
+        </div>
+        <button class="btn btn-primary" id="saveBtn" style="margin-bottom:16px;">Save</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Trend</h2></div>
+    <div class="card">
+      <canvas id="weightChart" height="180"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>History</h2></div>
+    <div class="card" id="weightHistory" style="padding:6px 14px;">
+      <div class="muted center" style="padding:18px 0;">Loading…</div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<script type="module" src="js/weight.js"></script>
+</body>
+</html>

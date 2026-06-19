@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ironlog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F4F2EC">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wordmark"><span class="dot"></span>Ironlog</div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <a href="exercises.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Manage exercises">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
+    </a>
+    <div class="user-chip" id="userChip"></div>
+  </div>
+</header>
+
+<div class="app-shell">
+<main>
+
+  <section>
+    <div class="section-head">
+      <h2 id="greeting">Today</h2>
+      <span class="label" id="todayDate"></span>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a href="log-workout.html" class="btn btn-primary" style="flex:1;min-width:140px;">+ Log workout</a>
+      <a href="log-cardio.html" class="btn btn-teal" style="flex:1;min-width:140px;">+ Log cardio</a>
+      <a href="weight.html" class="btn btn-ghost" style="flex:1;min-width:140px;">+ Log weight</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Muscle recovery</h2>
+      <span class="label">days since trained</span>
+    </div>
+    <div class="recovery-strip" id="recoveryStrip">
+      <div class="muted" style="padding:10px;font-size:13px;">Loading…</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>This week</h2></div>
+    <div class="stat-grid" id="weekStats">
+      <div class="stat-tile"><div class="val">—</div><div class="lbl">Sessions</div></div>
+      <div class="stat-tile"><div class="val">—</div><div class="lbl">Cardio km</div></div>
+      <div class="stat-tile"><div class="val">—</div><div class="lbl">Sets logged</div></div>
+      <div class="stat-tile"><div class="val">—</div><div class="lbl">Latest kg</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Recent activity</h2>
+      <a href="calendar.html" class="see-all">View calendar →</a>
+    </div>
+    <div class="card" id="recentFeed" style="padding:6px 14px;">
+      <div class="muted center" style="padding:24px 0;">Loading…</div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<nav class="tabbar">
+  <a href="index.html" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    Home
+  </a>
+  <a href="log-workout.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7v10M18 7v10M2 10v4M22 10v4M6 12h12"/></svg>
+    Train
+  </a>
+  <a href="log-cardio.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+    Cardio
+  </a>
+  <a href="calendar.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+    Calendar
+  </a>
+  <a href="stats.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg>
+    Stats
+  </a>
+</nav>
+
+<script type="module" src="js/dashboard.js"></script>
+</body>
+</html>

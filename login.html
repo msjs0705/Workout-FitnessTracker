@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in — Ironlog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1B2128">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="wordmark"><span style="color:var(--amber)">●</span> Ironlog</div>
+    <p class="sub">Your gym log, cardio, and bodyweight — synced everywhere.</p>
+
+    <div class="auth-tabs">
+      <button id="tabSignIn" class="active">Sign in</button>
+      <button id="tabSignUp">Create account</button>
+    </div>
+
+    <form id="authForm">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password" minlength="6">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Sign in</button>
+      <div class="auth-error" id="authError"></div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "./js/firebase-init.js";
+
+  // Already signed in? skip straight to dashboard.
+  onAuthStateChanged(auth, (user) => { if (user) window.location.href = "index.html"; });
+
+  let mode = "signin";
+  const tabSignIn = document.getElementById("tabSignIn");
+  const tabSignUp = document.getElementById("tabSignUp");
+  const submitBtn = document.getElementById("submitBtn");
+  const errEl = document.getElementById("authError");
+
+  tabSignIn.addEventListener("click", () => { mode = "signin"; tabSignIn.classList.add("active"); tabSignUp.classList.remove("active"); submitBtn.textContent = "Sign in"; errEl.textContent=""; });
+  tabSignUp.addEventListener("click", () => { mode = "signup"; tabSignUp.classList.add("active"); tabSignIn.classList.remove("active"); submitBtn.textContent = "Create account"; errEl.textContent=""; });
+
+  document.getElementById("authForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errEl.textContent = "";
+    submitBtn.disabled = true;
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    try {
+      if (mode === "signin") {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      window.location.href = "index.html";
+    } catch (err) {
+      errEl.textContent = humanizeError(err.code);
+      submitBtn.disabled = false;
+    }
+  });
+
+  function humanizeError(code){
+    const map = {
+      "auth/invalid-email": "That email doesn't look right.",
+      "auth/user-not-found": "No account with that email — try Create account.",
+      "auth/wrong-password": "Wrong password.",
+      "auth/invalid-credential": "Email or password is incorrect.",
+      "auth/email-already-in-use": "That email already has an account — try Sign in.",
+      "auth/weak-password": "Password needs at least 6 characters.",
+    };
+    return map[code] || "Something went wrong. Try again.";
+  }
+</script>
+</body>
+</html>
