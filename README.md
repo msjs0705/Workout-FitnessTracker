@@ -60,6 +60,21 @@ That's it for Firebase — there's nothing else to configure.
 
 ---
 
+## 2.5 (Optional) Turn on Google sign-in
+
+The login page also has a "Continue with Google" button. To make it work:
+
+1. **Authentication → Sign-in method → Google** → **Enable** → set a
+   support email → **Save**.
+2. **Authentication → Settings → Authorized domains** → **Add domain**
+   → enter your GitHub Pages domain only, e.g. `yourusername.github.io`
+   (no `https://`, no trailing path).
+
+Without step 2 you'll get an "unauthorized domain" error. Email/password
+sign-in still works fine even if you skip this entirely.
+
+---
+
 ## 3. Create your account & install on iPhone
 
 1. Open your GitHub Pages URL in **Safari** on your iPhone.
