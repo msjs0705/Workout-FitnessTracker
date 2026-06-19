@@ -52,18 +52,20 @@
 
 <script type="module">
   import { auth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-    GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "./js/firebase-init.js";
+    GoogleAuthProvider, signInWithPopup } from "./js/firebase-init.js";
 
   // Already signed in? skip straight to dashboard.
   onAuthStateChanged(auth, (user) => { if (user) window.location.href = "index.html"; });
 
-  // Catch any error from a Google redirect sign-in that just bounced back here.
-  getRedirectResult(auth).catch((err) => {
-    document.getElementById("authError").textContent = humanizeError(err.code);
-  });
-
-  document.getElementById("googleBtn").addEventListener("click", () => {
-    signInWithRedirect(auth, new GoogleAuthProvider());
+  document.getElementById("googleBtn").addEventListener("click", async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+      window.location.href = "index.html";
+    } catch (err) {
+      if (err.code !== "auth/popup-closed-by-user") {
+        document.getElementById("authError").textContent = humanizeError(err.code);
+      }
+    }
   });
 
   let mode = "signin";
