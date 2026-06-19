@@ -4,7 +4,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, signOut
+  createUserWithEmailAndPassword, signOut,
+  GoogleAuthProvider, signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, getDoc, getDocs,
@@ -24,6 +25,7 @@ try { enableIndexedDbPersistence(db); } catch (e) { /* multiple tabs open, fine 
 
 export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+  GoogleAuthProvider, signInWithRedirect, getRedirectResult,
   collection, doc, setDoc, addDoc, getDoc, getDocs, updateDoc, deleteDoc,
   query, where, orderBy, limit, Timestamp
 };
