@@ -1,25 +1,115 @@
 import { requireAuth } from "./auth-guard.js";
-import { getExercises, addWorkout, getLastPerformance, todayStr } from "./store.js";
+import {
+  getExercises, addWorkout, getLastPerformance, getWorkouts, todayStr,
+  saveDraftWorkout, getDraftWorkout, clearDraftWorkout
+} from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 import { toast } from "./ui.js";
 
 let uid, exercises = [];
 let selectedMuscles = new Set();
-let addedExercises = []; // { exerciseId, name, muscle, sets: [{weight,reps}] }
+let addedExercises = []; // { exerciseId, name, muscle, sets: [{weight,reps}], prev }
+let isLoaded = false;
+let autosaveTimer = null;
+let saveStatusEl;
 
 requireAuth(async (user) => {
   uid = user.uid;
-  document.getElementById("dateInput").value = todayStr();
+  saveStatusEl = document.getElementById("saveStatus");
 
   exercises = await getExercises(uid);
   renderMuscleChips();
-  renderExerciseSelect();
   wireTimeInputs();
+  wireSearch();
 
-  document.getElementById("addExerciseBtn").addEventListener("click", onAddExercise);
-  document.getElementById("saveBtn").addEventListener("click", onSave);
+  await loadDraftIfAny();
+
+  document.getElementById("repeatLastBtn").addEventListener("click", onRepeatLast);
+  document.getElementById("saveBtn").addEventListener("click", onFinalize);
+  document.getElementById("discardBtn").addEventListener("click", onDiscard);
+  document.getElementById("dateInput").addEventListener("change", scheduleAutosave);
+  document.getElementById("startTime").addEventListener("change", scheduleAutosave);
+  document.getElementById("endTime").addEventListener("change", scheduleAutosave);
+
+  isLoaded = true;
 });
 
+// ---------- draft load/save ----------
+async function loadDraftIfAny(){
+  const draft = await getDraftWorkout(uid);
+  if (!draft || !draft.exercises || !draft.exercises.length){
+    document.getElementById("dateInput").value = todayStr();
+    return;
+  }
+  document.getElementById("dateInput").value = draft.dateStr || todayStr();
+  document.getElementById("startTime").value = draft.startTime || "";
+  document.getElementById("endTime").value = draft.endTime || "";
+  selectedMuscles = new Set(draft.muscles || []);
+  syncMuscleChipUI();
+
+  addedExercises = await Promise.all(draft.exercises.map(async (e) => ({
+    ...e, prev: await getLastPerformance(uid, e.exerciseId)
+  })));
+  renderExerciseList();
+  document.getElementById("draftBanner").style.display = "flex";
+}
+
+function scheduleAutosave(){
+  if (!isLoaded) return;
+  setSaveStatus("Saving…");
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(doAutosave, 600);
+}
+
+async function doAutosave(){
+  if (!addedExercises.length){ setSaveStatus(""); return; }
+  try {
+    await saveDraftWorkout(uid, {
+      dateStr: document.getElementById("dateInput").value || todayStr(),
+      startTime: document.getElementById("startTime").value || null,
+      endTime: document.getElementById("endTime").value || null,
+      muscles: [...selectedMuscles],
+      exercises: addedExercises.map(e => ({ exerciseId: e.exerciseId, name: e.name, muscle: e.muscle, sets: e.sets }))
+    });
+    const t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    setSaveStatus(`Synced ${t} ✓`);
+  } catch (e) { setSaveStatus("Couldn't sync — check connection"); }
+}
+
+function setSaveStatus(text){ if (saveStatusEl) saveStatusEl.textContent = text; }
+
+async function onDiscard(){
+  if (!confirm("Discard everything logged so far for this in-progress workout?")) return;
+  addedExercises = []; selectedMuscles = new Set();
+  document.getElementById("dateInput").value = todayStr();
+  document.getElementById("startTime").value = "";
+  document.getElementById("endTime").value = "";
+  syncMuscleChipUI();
+  renderExerciseList();
+  await clearDraftWorkout(uid);
+  document.getElementById("draftBanner").style.display = "none";
+  setSaveStatus("");
+  toast("Draft discarded");
+}
+
+// ---------- repeat last workout ----------
+async function onRepeatLast(){
+  const all = await getWorkouts(uid);
+  if (!all.length){ toast("No previous workout found"); return; }
+  const last = all[0];
+  selectedMuscles = new Set([...selectedMuscles, ...(last.muscles || [])]);
+  syncMuscleChipUI();
+  for (const e of (last.exercises || [])){
+    if (addedExercises.find(x => x.exerciseId === e.exerciseId)) continue;
+    const prev = await getLastPerformance(uid, e.exerciseId);
+    addedExercises.push({ exerciseId: e.exerciseId, name: e.name, muscle: e.muscle, sets: e.sets.map(() => ({weight:"", reps:""})), prev });
+  }
+  renderExerciseList();
+  scheduleAutosave();
+  toast("Loaded last workout's exercises");
+}
+
+// ---------- muscle chips ----------
 function renderMuscleChips(){
   const wrap = document.getElementById("muscleChips");
   wrap.innerHTML = MUSCLE_GROUPS.map(m =>
@@ -28,36 +118,45 @@ function renderMuscleChips(){
   wrap.querySelectorAll(".muscle-chip").forEach(btn => {
     btn.addEventListener("click", () => {
       const m = btn.dataset.muscle;
-      if (selectedMuscles.has(m)) { selectedMuscles.delete(m); btn.classList.remove("amber"); btn.style.borderColor = "var(--line)"; }
-      else { selectedMuscles.add(m); btn.classList.add("amber"); btn.style.borderColor = "var(--amber)"; }
-      renderExerciseSelect();
+      if (selectedMuscles.has(m)) selectedMuscles.delete(m); else selectedMuscles.add(m);
+      syncMuscleChipUI();
+      scheduleAutosave();
     });
   });
 }
-
-function renderExerciseSelect(){
-  const sel = document.getElementById("exerciseSelect");
-  const groups = {};
-  for (const ex of exercises){
-    if (selectedMuscles.size && !selectedMuscles.has(ex.muscle)) continue;
-    (groups[ex.muscle] = groups[ex.muscle] || []).push(ex);
-  }
-  // if nothing matches the filter (e.g. no muscles selected yet), show everything
-  const useGroups = Object.keys(groups).length ? groups : groupAll();
-  sel.innerHTML = Object.entries(useGroups).map(([muscle, list]) =>
-    `<optgroup label="${muscle}">${list.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join("")}</optgroup>`
-  ).join("");
-}
-function groupAll(){
-  const groups = {};
-  for (const ex of exercises) (groups[ex.muscle] = groups[ex.muscle] || []).push(ex);
-  return groups;
+function syncMuscleChipUI(){
+  document.querySelectorAll(".muscle-chip").forEach(btn => {
+    const on = selectedMuscles.has(btn.dataset.muscle);
+    btn.classList.toggle("amber", on);
+    btn.style.borderColor = on ? "var(--amber)" : "var(--line)";
+  });
 }
 
-async function onAddExercise(){
-  const sel = document.getElementById("exerciseSelect");
-  const id = sel.value;
-  if (!id) return;
+// ---------- exercise search ----------
+function wireSearch(){
+  const input = document.getElementById("exerciseSearch");
+  const results = document.getElementById("searchResults");
+  input.addEventListener("input", () => renderSearchResults(input.value.trim().toLowerCase()));
+  input.addEventListener("focus", () => renderSearchResults(input.value.trim().toLowerCase()));
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#exerciseSearch") && !e.target.closest("#searchResults")) results.innerHTML = "";
+  });
+}
+function renderSearchResults(q){
+  const results = document.getElementById("searchResults");
+  if (!q){ results.innerHTML = ""; return; }
+  const pool = selectedMuscles.size ? exercises.filter(ex => selectedMuscles.has(ex.muscle)) : exercises;
+  const source = pool.length ? pool : exercises;
+  const matches = source.filter(ex => ex.name.toLowerCase().includes(q)).slice(0, 8);
+  if (!matches.length){ results.innerHTML = `<div class="sr-item muted">No matches</div>`; return; }
+  results.innerHTML = matches.map(ex => `<div class="sr-item" data-id="${ex.id}">${ex.name}<span class="sr-muscle">${ex.muscle}</span></div>`).join("");
+  results.querySelectorAll(".sr-item[data-id]").forEach(row => row.addEventListener("click", () => {
+    addExerciseById(row.dataset.id);
+    document.getElementById("exerciseSearch").value = "";
+    results.innerHTML = "";
+  }));
+}
+async function addExerciseById(id){
   if (addedExercises.find(e => e.exerciseId === id)) { toast("Already added"); return; }
   const ex = exercises.find(e => e.id === id);
   if (!ex) return;
@@ -66,17 +165,10 @@ async function onAddExercise(){
   const prev = await getLastPerformance(uid, id);
   addedExercises.push({ exerciseId: id, name: ex.name, muscle: ex.muscle, sets: [{weight:"", reps:""}], prev });
   renderExerciseList();
+  scheduleAutosave();
 }
 
-function syncMuscleChipUI(){
-  document.querySelectorAll(".muscle-chip").forEach(btn => {
-    const on = selectedMuscles.has(btn.dataset.muscle);
-    btn.classList.toggle("amber", on);
-    btn.style.borderColor = on ? "var(--amber)" : "var(--line)";
-  });
-  renderExerciseSelect();
-}
-
+// ---------- exercise / set list ----------
 function renderExerciseList(){
   const list = document.getElementById("exerciseList");
   document.getElementById("noExercises").style.display = addedExercises.length ? "none" : "block";
@@ -89,7 +181,7 @@ function renderExerciseList(){
           <div class="ex-title">${ex.name}</div>
           <div class="ex-muscle">${ex.muscle}</div>
         </div>
-        <button class="rm-ex" data-action="rm-ex" data-idx="${exIdx}">✕</button>
+        <button class="rm-ex" data-action="rm-ex" data-idx="${exIdx}" title="Delete this exercise">✕</button>
       </div>
       <div class="prev-hint">${prevText}</div>
       <div class="set-rows" data-idx="${exIdx}">
@@ -99,36 +191,54 @@ function renderExerciseList(){
     </div>`;
   }).join("");
 
-  // wire events (re-render rebuilds DOM each time, so re-bind each time)
   list.querySelectorAll('[data-action="rm-ex"]').forEach(b => b.addEventListener("click", () => {
     addedExercises.splice(Number(b.dataset.idx), 1);
-    renderExerciseList();
+    renderExerciseList(); scheduleAutosave();
   }));
   list.querySelectorAll('[data-action="add-set"]').forEach(b => b.addEventListener("click", () => {
     addedExercises[Number(b.dataset.idx)].sets.push({weight:"", reps:""});
-    renderExerciseList();
+    renderExerciseList(); scheduleAutosave();
   }));
   list.querySelectorAll('[data-action="rm-set"]').forEach(b => b.addEventListener("click", () => {
     const exIdx = Number(b.dataset.exidx), sIdx = Number(b.dataset.sidx);
     addedExercises[exIdx].sets.splice(sIdx, 1);
     if (!addedExercises[exIdx].sets.length) addedExercises[exIdx].sets.push({weight:"",reps:""});
-    renderExerciseList();
+    renderExerciseList(); scheduleAutosave();
+  }));
+  list.querySelectorAll('[data-action="step"]').forEach(b => b.addEventListener("click", () => {
+    const exIdx = Number(b.dataset.exidx), sIdx = Number(b.dataset.sidx), field = b.dataset.field, delta = Number(b.dataset.delta);
+    const cur = Number(addedExercises[exIdx].sets[sIdx][field]) || 0;
+    let next = cur + delta;
+    if (next < 0) next = 0;
+    next = field === 'weight' ? Math.round(next*10)/10 : Math.round(next);
+    addedExercises[exIdx].sets[sIdx][field] = next;
+    renderExerciseList(); scheduleAutosave();
   }));
   list.querySelectorAll('input[data-field]').forEach(inp => inp.addEventListener("input", () => {
     const exIdx = Number(inp.dataset.exidx), sIdx = Number(inp.dataset.sidx), field = inp.dataset.field;
     addedExercises[exIdx].sets[sIdx][field] = inp.value;
+    scheduleAutosave();
   }));
 }
 
 function setRowHtml(exIdx, sIdx, s){
   return `<div class="set-row">
     <div class="set-num">${sIdx+1}</div>
-    <input type="number" inputmode="decimal" placeholder="kg" value="${s.weight}" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="weight">
-    <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="reps">
+    <div class="stepper">
+      <button type="button" class="step-btn" data-action="step" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="weight" data-delta="-2.5">−</button>
+      <input type="number" inputmode="decimal" placeholder="kg" value="${s.weight}" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="weight">
+      <button type="button" class="step-btn" data-action="step" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="weight" data-delta="2.5">+</button>
+    </div>
+    <div class="stepper">
+      <button type="button" class="step-btn" data-action="step" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="reps" data-delta="-1">−</button>
+      <input type="number" inputmode="numeric" placeholder="reps" value="${s.reps}" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="reps">
+      <button type="button" class="step-btn" data-action="step" data-exidx="${exIdx}" data-sidx="${sIdx}" data-field="reps" data-delta="1">+</button>
+    </div>
     <button class="rm" data-action="rm-set" data-exidx="${exIdx}" data-sidx="${sIdx}">✕</button>
   </div>`;
 }
 
+// ---------- time / duration ----------
 function wireTimeInputs(){
   const start = document.getElementById("startTime"), end = document.getElementById("endTime");
   const update = () => {
@@ -138,14 +248,11 @@ function wireTimeInputs(){
       let mins = (eh*60+em) - (sh*60+sm);
       if (mins < 0) mins += 24*60;
       lbl.textContent = `Duration: ${mins} min`;
-    } else {
-      lbl.textContent = "Duration: —";
-    }
+    } else { lbl.textContent = "Duration: —"; }
   };
   start.addEventListener("input", update);
   end.addEventListener("input", update);
 }
-
 function getDurationMin(){
   const start = document.getElementById("startTime").value, end = document.getElementById("endTime").value;
   if (!start || !end) return null;
@@ -155,7 +262,8 @@ function getDurationMin(){
   return mins;
 }
 
-async function onSave(){
+// ---------- finalize ----------
+async function onFinalize(){
   const dateStr = document.getElementById("dateInput").value || todayStr();
   if (!addedExercises.length){ toast("Add at least one exercise"); return; }
   const cleanExercises = addedExercises.map(e => ({
@@ -177,6 +285,7 @@ async function onSave(){
       muscles,
       exercises: cleanExercises
     });
+    await clearDraftWorkout(uid);
     toast("Workout saved");
     setTimeout(() => window.location.href = "index.html", 600);
   } catch (err){

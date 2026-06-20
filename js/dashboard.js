@@ -1,20 +1,57 @@
 import { requireAuth } from "./auth-guard.js";
-import { getWorkouts, getCardio, getBodyWeights, computeRecovery, todayStr, daysAgo, formatNice, strToDate } from "./store.js";
+import { getWorkouts, getCardio, getBodyWeights, computeRecovery, computeStreak, todayStr, strToDate, formatNice } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 
 requireAuth(async (user) => {
-  document.getElementById("todayDate").textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
-  const hour = new Date().getHours();
-  document.getElementById("greeting").textContent = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  startClock();
 
   const [workouts, cardio, weights] = await Promise.all([
     getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid)
   ]);
 
+  renderStreak(workouts, cardio);
+  renderRecommendation(workouts);
   renderRecovery(workouts);
   renderWeekStats(workouts, cardio, weights);
   renderFeed(workouts, cardio);
 });
+
+function startClock(){
+  const clockEl = document.getElementById("clock");
+  const dateEl = document.getElementById("dateLine");
+  const tick = () => {
+    clockEl.textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    dateEl.textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+  };
+  tick();
+  setInterval(tick, 15000);
+}
+
+function renderStreak(workouts, cardio){
+  const streak = computeStreak(workouts, cardio);
+  const badge = document.getElementById("streakBadge");
+  if (streak > 0){
+    badge.style.display = "inline-flex";
+    badge.textContent = `🔥 ${streak} day streak`;
+  }
+}
+
+function renderRecommendation(workouts){
+  const rec = computeRecovery(workouts, MUSCLE_GROUPS);
+  const ready = Object.entries(rec).filter(([,r]) => r.status === 'ready' || r.status === 'never');
+  const wrap = document.getElementById("recommendWrap");
+  if (!ready.length){
+    wrap.innerHTML = `<div class="recommend-card"><div><div class="rc-label">Recovery status</div><div class="rc-muscle">Everything's still recovering</div></div></div>`;
+    return;
+  }
+  ready.sort((a,b) => (b[1].daysSince ?? 999) - (a[1].daysSince ?? 999));
+  const [muscle, info] = ready[0];
+  const sub = info.status === 'never' ? "Never trained — perfect day to start" : `Last trained ${info.daysSince} day${info.daysSince!==1?'s':''} ago`;
+  wrap.innerHTML = `<div class="recommend-card">
+    <div><div class="rc-label">Recommended today</div><div class="rc-muscle">${muscle}</div></div>
+    <div class="label" style="text-align:right;max-width:140px;">${sub}</div>
+  </div>`;
+}
 
 function renderRecovery(workouts){
   const rec = computeRecovery(workouts, MUSCLE_GROUPS);
@@ -27,11 +64,7 @@ function renderRecovery(workouts){
     el.className = `gauge ${status}`;
     const dayLabel = r.daysSince === null ? "—" : r.daysSince;
     const statusLabel = r.status === 'never' ? "Never trained" : r.status === 'ready' ? "Ready" : `Due in ${r.target - r.daysSince}d`;
-    el.innerHTML = `
-      <div class="muscle-name">${m}</div>
-      <div class="days">${dayLabel}</div>
-      <div class="status">${statusLabel}</div>
-    `;
+    el.innerHTML = `<div class="muscle-name">${m}</div><div class="days">${dayLabel}</div><div class="status">${statusLabel}</div>`;
     strip.appendChild(el);
   }
 }
@@ -55,7 +88,7 @@ function renderFeed(workouts, cardio){
   const items = [
     ...workouts.map(w => ({ kind:'strength', ...w })),
     ...cardio.map(c => ({ kind:'cardio', ...c }))
-  ].sort((a,b) => b.dateStr.localeCompare(a.dateStr) || (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)).slice(0,6);
+  ].sort((a,b) => b.dateStr.localeCompare(a.dateStr) || (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0)).slice(0,3);
 
   const feed = document.getElementById("recentFeed");
   if (!items.length){

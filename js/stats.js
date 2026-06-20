@@ -1,5 +1,5 @@
 import { requireAuth } from "./auth-guard.js";
-import { getWorkouts, getCardio, getPRs, strToDate, dateToStr } from "./store.js";
+import { getWorkouts, getCardio, getPRs, strToDate, dateToStr, computeStreak } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 
 const MUSCLE_COLORS = {
@@ -11,11 +11,33 @@ requireAuth(async (user) => {
   const uid = user.uid;
   const [workouts, cardio, prs] = await Promise.all([getWorkouts(uid), getCardio(uid), getPRs(uid)]);
 
+  renderStreak(workouts, cardio);
+  renderHeatmap(workouts, cardio);
   renderCardioChart(cardio);
   renderMuscleChart(workouts);
   renderProgression(workouts);
   renderPRs(prs);
 });
+
+function renderStreak(workouts, cardio){
+  const streak = computeStreak(workouts, cardio);
+  document.getElementById("streakLabel").textContent = streak > 0 ? `🔥 ${streak} day streak` : "";
+}
+
+function renderHeatmap(workouts, cardio){
+  const flags = {};
+  for (const w of workouts) flags[w.dateStr] = (flags[w.dateStr]||0) | 1;
+  for (const c of cardio) flags[c.dateStr] = (flags[c.dateStr]||0) | 2;
+  const totalDays = 98;
+  const today = new Date();
+  let html = "";
+  for (let i = totalDays - 1; i >= 0; i--){
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const ds = dateToStr(d);
+    html += `<div class="heat-cell level-${flags[ds]||0}" title="${ds}"></div>`;
+  }
+  document.getElementById("heatmap").innerHTML = html;
+}
 
 function isoWeekKey(dateStr){
   const d = strToDate(dateStr);
@@ -49,17 +71,22 @@ function renderCardioChart(cardio){
 
 function renderMuscleChart(workouts){
   const counts = {};
-  for (const w of workouts) for (const e of (w.exercises||[])) counts[e.muscle] = (counts[e.muscle]||0) + (e.sets||[]).length;
+  for (const w of workouts) for (const m of (w.muscles||[])) counts[m] = (counts[m]||0) + 1;
   const labels = MUSCLE_GROUPS.filter(m => counts[m]);
   const wrap = document.getElementById("muscleChart").parentElement.parentElement;
   if (!labels.length){
-    wrap.innerHTML = `<div class="empty" style="border:none;width:100%;"><div class="big">No sets logged yet</div>Log a workout to see your muscle split.</div>`;
+    wrap.innerHTML = `<div class="empty" style="border:none;width:100%;"><div class="big">No workouts logged yet</div>Log a workout to see your muscle split.</div>`;
     return;
   }
   new Chart(document.getElementById("muscleChart"), {
     type: "doughnut",
     data: { labels, datasets: [{ data: labels.map(m => counts[m]), backgroundColor: labels.map(m => MUSCLE_COLORS[m]) }] },
-    options: { plugins: { legend: { position:"bottom", labels: { font: { family:"Inter", size:11 }, boxWidth:10, padding:12 } } } }
+    options: {
+      plugins: {
+        legend: { position:"bottom", labels: { font: { family:"Inter", size:11 }, boxWidth:10, padding:12 } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed}x` } }
+      }
+    }
   });
 }
 

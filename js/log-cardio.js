@@ -1,8 +1,8 @@
 import { requireAuth } from "./auth-guard.js";
 import { addCardio, getCardio, deleteCardio, todayStr, formatNice } from "./store.js";
-import { toast } from "./ui.js";
+import { toast, undoableAction } from "./ui.js";
 
-let uid;
+let uid, cache = [];
 
 requireAuth(async (user) => {
   uid = user.uid;
@@ -12,7 +12,8 @@ requireAuth(async (user) => {
   [dur, dist].forEach(el => el.addEventListener("input", updateSpeed));
 
   document.getElementById("saveBtn").addEventListener("click", onSave);
-  await renderRecent();
+  cache = await getCardio(uid);
+  renderRecent();
 });
 
 function updateSpeed(){
@@ -24,9 +25,7 @@ function updateSpeed(){
     const paceMinPerKm = mins / km;
     const paceMin = Math.floor(paceMinPerKm), paceSec = Math.round((paceMinPerKm - paceMin) * 60);
     lbl.textContent = `Pace / speed: ${speedKmh.toFixed(1)} km/h · ${paceMin}:${String(paceSec).padStart(2,'0')} /km`;
-  } else {
-    lbl.textContent = "Pace / speed: —";
-  }
+  } else { lbl.textContent = "Pace / speed: —"; }
 }
 
 async function onSave(){
@@ -40,22 +39,22 @@ async function onSave(){
   const btn = document.getElementById("saveBtn");
   btn.disabled = true; btn.textContent = "Saving…";
   try {
-    await addCardio(uid, { dateStr, cardioType, durationMin, distanceKm, speedKmh });
+    const ref = await addCardio(uid, { dateStr, cardioType, durationMin, distanceKm, speedKmh });
+    cache.unshift({ id: ref.id, dateStr, cardioType, durationMin, distanceKm, speedKmh });
     toast("Cardio session saved");
     document.getElementById("duration").value = "";
     document.getElementById("distance").value = "";
     updateSpeed();
-    await renderRecent();
-  } catch(e){
-    toast("Couldn't save — check connection");
-  }
+    renderRecent();
+  } catch(e){ toast("Couldn't save — check connection"); }
   btn.disabled = false; btn.textContent = "Save cardio session";
 }
 
-async function renderRecent(){
-  const all = await getCardio(uid);
-  const recent = all.slice(0, 8);
+function renderRecent(){
+  const recent = cache.slice(0, 8);
   const wrap = document.getElementById("recentCardio");
+  const synced = document.getElementById("lastSynced");
+  if (synced) synced.textContent = `Last synced ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   if (!recent.length){
     wrap.innerHTML = `<div class="empty" style="border:none;"><div class="big">No cardio logged yet</div>Your sessions will show up here.</div>`;
     return;
@@ -70,9 +69,14 @@ async function renderRecent(){
       <button class="rm-ex" data-id="${c.id}" title="Delete">✕</button>
     </div>
   `).join("");
-  wrap.querySelectorAll("[data-id]").forEach(b => b.addEventListener("click", async () => {
-    await deleteCardio(uid, b.dataset.id);
-    toast("Deleted");
+  wrap.querySelectorAll("[data-id]").forEach(b => b.addEventListener("click", () => {
+    const idx = cache.findIndex(c => c.id === b.dataset.id);
+    if (idx === -1) return;
+    const [removed] = cache.splice(idx, 1);
     renderRecent();
+    undoableAction("Cardio session deleted", {
+      onUndo: () => { cache.splice(idx, 0, removed); renderRecent(); },
+      onCommit: () => deleteCardio(uid, removed.id)
+    });
   }));
 }

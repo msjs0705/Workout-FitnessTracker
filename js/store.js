@@ -75,6 +75,25 @@ export async function getWorkouts(uid){
 export async function deleteWorkout(uid, id){
   return deleteDoc(doc(db, "users", uid, "workouts", id));
 }
+export async function updateWorkout(uid, id, data){
+  return updateDoc(doc(db, "users", uid, "workouts", id), data);
+}
+
+// ---------- in-progress workout draft ----------
+// Lets you log a few exercises, leave the page (check stats, even log
+// out), and come back to find everything still there. Only turns into
+// a real, stats-visible workout once you tap "Save workout".
+const DRAFT_DOC = "workout";
+export async function saveDraftWorkout(uid, draft){
+  return setDoc(doc(db, "users", uid, "drafts", DRAFT_DOC), { ...draft, updatedAt: Timestamp.now() });
+}
+export async function getDraftWorkout(uid){
+  const snap = await getDoc(doc(db, "users", uid, "drafts", DRAFT_DOC));
+  return snap.exists() ? snap.data() : null;
+}
+export async function clearDraftWorkout(uid){
+  return deleteDoc(doc(db, "users", uid, "drafts", DRAFT_DOC));
+}
 
 // Last performed sets for a given exercise (for the "previous: 60kg x 8" hint)
 export async function getLastPerformance(uid, exerciseId){
@@ -132,6 +151,24 @@ export async function setBodyWeight(uid, dateStr, weight){
 export async function getBodyWeights(uid){
   const snap = await getDocs(query(collection(db, "users", uid, "bodyweight"), orderBy("__name__")));
   return snap.docs.map(d => ({ dateStr: d.id, ...d.data() }));
+}
+export async function deleteBodyWeight(uid, dateStr){
+  return deleteDoc(doc(db, "users", uid, "bodyweight", dateStr));
+}
+
+// ---------- streak ----------
+// Consecutive days (counting back from today, or yesterday if today
+// hasn't happened yet) with at least one workout or cardio session.
+export function computeStreak(workouts, cardio){
+  const days = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr)]);
+  let streak = 0;
+  const cursor = new Date();
+  if (!days.has(dateToStr(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (days.has(dateToStr(cursor))){
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
 // ---------- muscle recovery ----------
