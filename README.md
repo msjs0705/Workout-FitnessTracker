@@ -73,6 +73,16 @@ The login page also has a "Continue with Google" button. To make it work:
 Without step 2 you'll get an "unauthorized domain" error. Email/password
 sign-in still works fine even if you skip this entirely.
 
+**Important caveat for iPhone:** Google sign-in only works when opened
+in a regular Safari tab. Once the app is installed to your home screen
+(standalone mode), iOS does not let it share login data with Safari's
+Google sign-in popup — this is a platform limitation, not a bug here,
+and there's no real workaround for it. **Use email/password as your
+main sign-in method on your home-screen app** — it works perfectly
+there, and you'll only need to type it once since the session stays
+signed in. Google sign-in is a nice option if you also use the site
+from a laptop browser.
+
 ---
 
 ## 3. Create your account & install on iPhone

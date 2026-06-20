@@ -27,12 +27,20 @@
 <main>
 
   <section>
+    <div class="section-head"><h2>Consistency</h2><span class="label" id="streakLabel"></span></div>
+    <div class="card">
+      <div class="heatmap" id="heatmap"></div>
+      <div class="label mt-8">Last 14 weeks · darker = both strength &amp; cardio that day</div>
+    </div>
+  </section>
+
+  <section>
     <div class="section-head"><h2>Cardio distance</h2><span class="label">per week, km</span></div>
     <div class="card"><canvas id="cardioChart" height="180"></canvas></div>
   </section>
 
   <section>
-    <div class="section-head"><h2>Muscle split</h2><span class="label">share of sets, all-time</span></div>
+    <div class="section-head"><h2>Muscle split</h2><span class="label">times trained, all-time</span></div>
     <div class="card" style="display:flex;align-items:center;justify-content:center;">
       <div style="max-width:280px;width:100%;"><canvas id="muscleChart"></canvas></div>
     </div>

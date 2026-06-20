@@ -25,6 +25,14 @@
 <div class="app-shell">
 <main>
 
+  <div class="card-dark" id="draftBanner" style="display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;padding:14px 18px;">
+    <div>
+      <div style="font-weight:600;font-size:13.5px;">Resumed your in-progress workout</div>
+      <div class="label" style="margin-top:2px;">Everything you'd logged is still here</div>
+    </div>
+    <button class="btn btn-ghost-dark btn-sm" id="discardBtn">Discard</button>
+  </div>
+
   <section>
     <div class="card">
       <div class="field-row">
@@ -54,24 +62,25 @@
 
   <section>
     <div class="section-head"><h2>Exercises</h2></div>
+    <button class="btn btn-ghost btn-block" id="repeatLastBtn" style="margin-bottom:14px;">↻ Repeat last workout</button>
     <div class="card mt-8" style="margin-bottom:16px;">
-      <div class="field-row" style="align-items:flex-end;">
-        <div class="field" style="margin-bottom:0;">
-          <label for="exerciseSelect">Add exercise</label>
-          <select id="exerciseSelect"></select>
-        </div>
-        <button class="btn btn-primary" id="addExerciseBtn" style="margin-bottom:0;">Add</button>
+      <div class="field" style="margin-bottom:0;position:relative;">
+        <label for="exerciseSearch">Add exercise</label>
+        <input type="text" id="exerciseSearch" placeholder="Search exercises…" autocomplete="off">
+        <div id="searchResults" class="search-results"></div>
       </div>
     </div>
     <div id="exerciseList"></div>
     <div class="empty" id="noExercises">
       <div class="big">No exercises added yet</div>
-      Pick one from the dropdown above to get started.
+      Search above to get started, or repeat your last workout.
     </div>
   </section>
 
   <section>
+    <div class="label center mt-8" id="saveStatus" style="min-height:14px;"></div>
     <button class="btn btn-primary btn-block" id="saveBtn" style="padding:16px;font-size:16px;">Save workout</button>
+    <div class="muted center mono" style="font-size:11.5px;margin-top:10px;">Your progress autosaves as you go — tap Save when the session is done.</div>
   </section>
 
 </main>

@@ -18,6 +18,9 @@
 <header class="topbar">
   <div class="wordmark"><span class="dot"></span>Ironlog</div>
   <div style="display:flex;align-items:center;gap:8px;">
+    <a href="weight.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Body weight">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 13l3-3M9 5h6"/></svg>
+    </a>
     <a href="exercises.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Manage exercises">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
     </a>
@@ -29,14 +32,21 @@
 <main>
 
   <section>
-    <div class="section-head">
-      <h2 id="greeting">Today</h2>
-      <span class="label" id="todayDate"></span>
+    <div class="hero">
+      <div class="clock" id="clock">--:--</div>
+      <div class="date-line" id="dateLine"></div>
+      <div class="streak" id="streakBadge" style="display:none;"></div>
     </div>
+  </section>
+
+  <section>
+    <div id="recommendWrap"></div>
+  </section>
+
+  <section>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <a href="log-workout.html" class="btn btn-primary" style="flex:1;min-width:140px;">+ Log workout</a>
       <a href="log-cardio.html" class="btn btn-teal" style="flex:1;min-width:140px;">+ Log cardio</a>
-      <a href="weight.html" class="btn btn-ghost" style="flex:1;min-width:140px;">+ Log weight</a>
     </div>
   </section>
 
@@ -62,7 +72,7 @@
 
   <section>
     <div class="section-head">
-      <h2>Recent activity</h2>
+      <h2>Recent</h2>
       <a href="calendar.html" class="see-all">View calendar →</a>
     </div>
     <div class="card" id="recentFeed" style="padding:6px 14px;">
