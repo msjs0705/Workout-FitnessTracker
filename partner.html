@@ -507,8 +507,8 @@
         <!-- HEADER -->
         <header>
             <div class="logo">
-                <span class="owner">Juu's</span>
-                <span class="wordmark">Workout Stats</span>
+                <span class="owner">Juu</span>
+                <span class="wordmark">Ironlog</span>
             </div>
             <div class="refresh-status">
                 <span class="status-dot"></span>
@@ -668,6 +668,7 @@
             return `${daysDiff} days ago`;
         }
 
+        // Pace helper
         function formatPace(durationMin, distanceKm) {
             if (!distanceKm || distanceKm <= 0) return "0:00/km";
             const decimalPace = durationMin / distanceKm;
@@ -723,10 +724,11 @@
             if (!db) return;
             try {
                 // Fetch data in parallel
-                const [workoutsSnap, cardioSnap, weightSnap] = await Promise.all([
+                const [workoutsSnap, cardioSnap, weightSnap, restDaysSnap] = await Promise.all([
                     getDocs(collection(db, "users", ownerUid, "workouts")),
                     getDocs(collection(db, "users", ownerUid, "cardio")),
-                    getDocs(collection(db, "users", ownerUid, "bodyweight"))
+                    getDocs(collection(db, "users", ownerUid, "bodyweight")),
+                    getDocs(collection(db, "users", ownerUid, "restdays"))
                 ]);
 
                 // Map docs
@@ -739,10 +741,11 @@
                         weight: weightVal
                     };
                 });
+                const restDays = restDaysSnap.docs.map(doc => doc.id);
 
                 // Render metrics and charts
                 const todayStr = getLocalDateStr();
-                processDashboardData(workouts, cardio, bodyweight, todayStr);
+                processDashboardData(workouts, cardio, bodyweight, restDays, todayStr);
 
                 // Update timestamp
                 lastUpdatedTime = new Date();
@@ -766,17 +769,19 @@
         }
 
         // Core calculations & UI population
-        function processDashboardData(workouts, cardio, bodyweight, todayStr) {
+        function processDashboardData(workouts, cardio, bodyweight, restDays, todayStr) {
             // Sort arrays descending
             workouts.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
             cardio.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
             bodyweight.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+            restDays.sort((a, b) => b.localeCompare(a));
 
             // 1. STREAK CALCULATION
-            // Collect all unique activity dates (workouts & cardio)
+            // Collect all unique activity dates (workouts, cardio & restDays)
             const activityDatesSet = new Set();
             workouts.forEach(w => { if (w.dateStr) activityDatesSet.add(w.dateStr); });
             cardio.forEach(c => { if (c.dateStr) activityDatesSet.add(c.dateStr); });
+            restDays.forEach(d => { if (d) activityDatesSet.add(d); });
 
             const activityDates = Array.from(activityDatesSet).sort((a, b) => b.localeCompare(a));
             
@@ -808,12 +813,26 @@
 
             // 2. LAST WORKOUT
             const workoutDisplay = document.getElementById("workout-display");
+            
+            // Check if rest day is the most recent day overall (latest rest day date >= latest workout & cardio date)
+            const latestRestDayDate = restDays.length > 0 ? restDays[0] : null;
+            const latestWorkoutDate = workouts.length > 0 ? workouts[0].dateStr : null;
+            const latestCardioDate = cardio.length > 0 ? cardio[0].dateStr : null;
+            
+            const isRestDayMostRecent = latestRestDayDate && 
+                (!latestWorkoutDate || latestRestDayDate >= latestWorkoutDate) && 
+                (!latestCardioDate || latestRestDayDate >= latestCardioDate);
+                
             if (workouts.length > 0) {
                 const latestWorkout = workouts[0];
                 const daysAgo = getDaysDifference(todayStr, latestWorkout.dateStr);
                 
                 if (daysAgo >= 3) {
-                    workoutDisplay.innerHTML = `<span class="workout-rest-text">Taking a rest 😴</span>`;
+                    if (isRestDayMostRecent) {
+                        workoutDisplay.innerHTML = `<span class="workout-rest-text">Rest day 🛌</span>`;
+                    } else {
+                        workoutDisplay.innerHTML = `<span class="workout-rest-text">Taking a rest 😴</span>`;
+                    }
                 } else {
                     const musclesTrained = Array.isArray(latestWorkout.muscles) && latestWorkout.muscles.length > 0 
                         ? latestWorkout.muscles.join(" & ") 
@@ -821,7 +840,11 @@
                     workoutDisplay.innerText = `${musclesTrained} · ${formatDaysAgo(daysAgo)}`;
                 }
             } else {
-                workoutDisplay.innerText = "No workouts logged";
+                if (isRestDayMostRecent) {
+                    workoutDisplay.innerHTML = `<span class="workout-rest-text">Rest day 🛌</span>`;
+                } else {
+                    workoutDisplay.innerText = "No workouts logged";
+                }
             }
 
             // 3. LAST RUN (or cardio)
@@ -885,7 +908,6 @@
             }
 
             // 5. MUSCLE RECOVERY STRIP
-            // Muscles list and recovery targets
             const targetMuscles = [
                 { name: "Chest", target: 2 },
                 { name: "Back", target: 3 },
@@ -898,10 +920,9 @@
             ];
 
             const recoveryGrid = document.getElementById("recovery-grid-display");
-            recoveryGrid.innerHTML = ""; // Clear existing grid
+            recoveryGrid.innerHTML = "";
 
             targetMuscles.forEach(m => {
-                // Find most recent workout training this muscle
                 let lastTrainedDateStr = null;
                 for (const w of workouts) {
                     if (Array.isArray(w.muscles)) {
@@ -940,7 +961,6 @@
             });
 
             // 6. WEIGHT TREND LINE CHART (last 60 entries)
-            // Plot last 60 weights in chronological order (ascending date)
             const weightChartData = [...bodyweight].slice(0, 60).reverse();
             const weightLabels = weightChartData.map(w => {
                 const [y, m, d] = w.dateStr.split('-').map(Number);
@@ -959,7 +979,6 @@
             const wrapper = document.getElementById("cardio-chart-wrapper");
             
             if (!hasCardio) {
-                // Show placeholder
                 wrapper.innerHTML = `
                     <div class="cardio-placeholder">
                         <span class="cardio-placeholder-icon">🏃‍♂️</span>
@@ -967,10 +986,8 @@
                     </div>
                 `;
             } else {
-                // Ensure canvas exists
                 wrapper.innerHTML = `<canvas id="cardioChart"></canvas>`;
                 
-                // Group by week
                 const weeks = getWeeklyIntervals(new Date());
                 
                 runningWorkouts.forEach(c => {
@@ -991,9 +1008,8 @@
             }
         }
 
-        // Helper to calculate total running distance in current calendar month
         function getRunningThisMonthDistance(cardio, todayStr) {
-            const [todayYear, todayMonth] = todayStr.split('-').map(Number); // Month is 1-indexed in dateStr
+            const [todayYear, todayMonth] = todayStr.split('-').map(Number);
             
             const runningThisMonth = cardio.filter(c => {
                 const isRun = !c.cardioType || c.cardioType.toLowerCase().includes('run');
@@ -1005,7 +1021,6 @@
             return runningThisMonth.reduce((sum, c) => sum + (parseFloat(c.distanceKm) || 0), 0);
         }
 
-        // Helper to generate 12 weekly Monday-Sunday intervals ending this week
         function getWeeklyIntervals(todayDate = new Date()) {
             const intervals = [];
             const currentDay = todayDate.getDay();
@@ -1036,7 +1051,6 @@
             return `${months[date.getMonth()]} ${date.getDate()}`;
         }
 
-        // CHART rendering logic
         function renderWeightChart(labels, data) {
             const ctx = document.getElementById('weightChart').getContext('2d');
             
@@ -1044,7 +1058,6 @@
                 weightChartInstance.destroy();
             }
 
-            // Create gradient fill
             const gradient = ctx.createLinearGradient(0, 0, 0, 200);
             gradient.addColorStop(0, 'rgba(226, 114, 42, 0.2)');
             gradient.addColorStop(1, 'rgba(226, 114, 42, 0.00)');
@@ -1166,7 +1179,6 @@
             });
         }
 
-        // Timer to tick up the "Last updated X mins ago" text in the header
         function updateTimeElapsed() {
             const textEl = document.getElementById("update-time-text");
             if (!lastUpdatedTime) {
@@ -1185,10 +1197,9 @@
             }
         }
 
-        // Start tasks
         updateDashboard();
-        setInterval(updateDashboard, 180000); // Re-fetch every 3 mins
-        setInterval(updateTimeElapsed, 10000); // Update tick label every 10s
+        setInterval(updateDashboard, 180000);
+        setInterval(updateTimeElapsed, 10000);
     </script>
 </body>
 </html>
