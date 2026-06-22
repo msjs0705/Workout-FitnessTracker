@@ -271,7 +271,15 @@ section + section{ margin-top: 34px; }
   outline-offset: 1px;
 }
 .field-row{ display:flex; gap: 8px; flex-wrap: nowrap; }
-.field-row .field{ flex: 1 1 0; min-width: 0; max-width: 50%; margin-bottom: 16px; }
+.field-row{
+    display:flex;
+    gap:8px;
+}
+
+.field-row .field{
+    flex:1;
+    max-width:none;
+}
 .field-row input, .field-row select{ font-size: 14px; padding: 10px 6px; }
 
 .empty{
