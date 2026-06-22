@@ -125,12 +125,21 @@ function showDay(dateStr){
     return;
   }
 
+  const [ty, tm, td] = todayStr().split('-').map(Number);
+  const [wy, wm, wd] = dateStr.split('-').map(Number);
+  const daysDiff = Math.floor((new Date(ty, tm - 1, td) - new Date(wy, wm - 1, wd)) / 86400000);
+  const canEdit = daysDiff <= 3 && daysDiff >= 0;
+
   let html = "";
   for (const w of entry.strength){
+    const editBtn = canEdit ? `<button class="rm-ex" data-action="edit-w" data-id="${w.id}" style="color:var(--teal);margin-right:10px;">Edit</button>` : "";
     html += `<div class="exercise-card">
       <div class="ex-head">
         <div><div class="ex-title">${(w.muscles||[]).join(", ") || "Workout"}</div><div class="ex-muscle">${w.durationMin ? w.durationMin+' min' : ''}</div></div>
-        <button class="rm-ex" data-action="del-w" data-id="${w.id}">Delete workout</button>
+        <div>
+          ${editBtn}
+          <button class="rm-ex" data-action="del-w" data-id="${w.id}">Delete workout</button>
+        </div>
       </div>
       ${(w.exercises||[]).map((e, exIdx) => `<div class="flex-between" style="margin-bottom:10px;align-items:flex-start;">
         <div>
@@ -149,6 +158,10 @@ function showDay(dateStr){
     </div>`;
   }
   body.innerHTML = html;
+
+  body.querySelectorAll('[data-action="edit-w"]').forEach(b => b.addEventListener("click", () => {
+    window.location.href = `log-workout.html?edit=${b.dataset.id}`;
+  }));
 
   body.querySelectorAll('[data-action="del-w"]').forEach(b => b.addEventListener("click", () => {
     const key = monthKey(viewDate);
