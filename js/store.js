@@ -18,7 +18,7 @@
 
 import {
   db, collection, doc, setDoc, addDoc, getDoc, getDocs,
-  updateDoc, deleteDoc, query, orderBy, Timestamp
+  updateDoc, deleteDoc, query, orderBy, where, Timestamp
 } from "./firebase-init.js";
 import { DEFAULT_EXERCISES, RECOVERY_DAYS } from "./exercises-data.js";
 
@@ -70,6 +70,25 @@ export async function addWorkout(uid, workout){
 }
 export async function getWorkouts(uid){
   const snap = await getDocs(query(collection(db, "users", uid, "workouts"), orderBy("dateStr", "desc")));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+// Fetch only a single month — used by calendar to avoid loading entire history
+export async function getWorkoutsByMonth(uid, year, month){
+  const y = String(year), m = String(month+1).padStart(2,'0');
+  const snap = await getDocs(query(
+    collection(db, "users", uid, "workouts"),
+    where("dateStr", ">=", `${y}-${m}-01`),
+    where("dateStr", "<=", `${y}-${m}-31`)
+  ));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+export async function getCardioByMonth(uid, year, month){
+  const y = String(year), m = String(month+1).padStart(2,'0');
+  const snap = await getDocs(query(
+    collection(db, "users", uid, "cardio"),
+    where("dateStr", ">=", `${y}-${m}-01`),
+    where("dateStr", "<=", `${y}-${m}-31`)
+  ));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 export async function deleteWorkout(uid, id){
