@@ -592,10 +592,10 @@ section + section{ margin-top: 34px; }
 }
 
 .heatmap{ display:grid; grid-template-columns: repeat(14, 1fr); gap: 4px; }
-.heat-cell{ aspect-ratio:1; border-radius: 3px; background: var(--paper-dim); }
-.heat-cell.level-1{ background: var(--amber-dim); }
-.heat-cell.level-2{ background: var(--teal-dim); }
-.heat-cell.level-3{ background: var(--ink); }
+.heat-cell{ aspect-ratio:1; border-radius: 3px; background: var(--line); }
+.heat-cell.level-1{ background: #E2722A; }
+.heat-cell.level-2{ background: #1F9E83; }
+.heat-cell.level-3{ background: #C9A227; }
 
 .hero{
   background: var(--navy);
