@@ -43,6 +43,12 @@
       <button class="btn btn-danger btn-block" id="signOutBtn">Sign out</button>
     </div>
   </section>
+  <section>
+    <div class="section-head"><h2>App</h2></div>
+    <div class="card">
+      <button class="btn btn-ghost btn-block" id="updateBtn">Check for updates</button>
+    </div>
+  </section>
 </main>
 </div>
 <script type="module">
@@ -67,7 +73,13 @@
     } catch(e){ toast("Couldn't save — try again"); }
     btn.disabled = false;
   });
-
+  document.getElementById("updateBtn").addEventListener("click", async () => {
+    if ('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.update();
+    }
+    window.location.reload(true);
+  });
   document.getElementById("signOutBtn").addEventListener("click", async () => {
     await signOut(auth);
     window.location.href = "login.html";
