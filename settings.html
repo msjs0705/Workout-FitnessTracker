@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings — Ironlog</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F4F2EC">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="wordmark"><span class="dot"></span>Ironlog</div>
+    <div class="page-eyebrow">Settings</div>
+  </div>
+  <a href="index.html" class="btn btn-ghost btn-sm">← Home</a>
+</header>
+<div class="app-shell">
+<main>
+  <section>
+    <div class="section-head"><h2>Profile</h2></div>
+    <div class="card">
+      <div class="field">
+        <label for="displayName">Display name</label>
+        <input type="text" id="displayName" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="text" id="emailDisplay" disabled style="background:var(--paper-dim);color:var(--ink-soft);">
+      </div>
+      <button class="btn btn-primary btn-block" id="saveNameBtn">Save name</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Account</h2></div>
+    <div class="card">
+      <button class="btn btn-danger btn-block" id="signOutBtn">Sign out</button>
+    </div>
+  </section>
+</main>
+</div>
+<script type="module">
+  import { auth, onAuthStateChanged, signOut } from "./js/firebase-init.js";
+  import { updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { toast } from "./js/ui.js";
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user){ window.location.href = "login.html"; return; }
+    document.getElementById("displayName").value = user.displayName || "";
+    document.getElementById("emailDisplay").value = user.email || "";
+  });
+
+  document.getElementById("saveNameBtn").addEventListener("click", async () => {
+    const name = document.getElementById("displayName").value.trim();
+    if (!name){ toast("Enter a name"); return; }
+    const btn = document.getElementById("saveNameBtn");
+    btn.disabled = true;
+    try {
+      await updateProfile(auth.currentUser, { displayName: name });
+      toast("Name saved");
+    } catch(e){ toast("Couldn't save — try again"); }
+    btn.disabled = false;
+  });
+
+  document.getElementById("signOutBtn").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+</script>
+</body>
+</html>

@@ -64,12 +64,10 @@
     <div class="section-head"><h2>Exercises</h2></div>
     <button class="btn btn-ghost btn-block" id="repeatLastBtn" style="margin-bottom:14px;">↻ Repeat last workout</button>
     <div class="card mt-8" style="margin-bottom:16px;">
-      <div class="field-row" style="align-items:flex-end;">
-        <div class="field" style="margin-bottom:0;">
-          <label for="exerciseSelect">Add exercise</label>
-          <select id="exerciseSelect"></select>
-        </div>
-        <button class="btn btn-primary" id="addExerciseBtn" style="margin-bottom:0;">Add</button>
+      <div class="field" style="margin-bottom:0;position:relative;">
+        <label for="exerciseSearch">Add exercise</label>
+        <input type="text" id="exerciseSearch" placeholder="Search exercises…" autocomplete="off">
+        <div id="searchResults" class="search-results"></div>
       </div>
     </div>
     <div id="exerciseList"></div>
