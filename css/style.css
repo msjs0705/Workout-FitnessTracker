@@ -643,3 +643,20 @@ input[type="time"] {
     appearance: none;
     -webkit-appearance: none;
 }
+/* =========================================================
+   Gym photo styles
+   ========================================================= */
+#photoSection{
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn{
+  from{ opacity:0; transform: translateY(8px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+#previewImg{
+  width: 100%;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  max-height: 280px;
+  border: 1px solid var(--line);
+}
