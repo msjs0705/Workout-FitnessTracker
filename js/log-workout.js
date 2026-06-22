@@ -1,7 +1,8 @@
 import { requireAuth } from "./auth-guard.js";
 import {
   getExercises, addWorkout, getLastPerformance, getWorkouts, todayStr,
-  saveDraftWorkout, getDraftWorkout, clearDraftWorkout
+  saveDraftWorkout, getDraftWorkout, clearDraftWorkout,
+  compressImage, uploadGymPhoto
 } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 import { toast } from "./ui.js";
@@ -12,6 +13,7 @@ let addedExercises = []; // { exerciseId, name, muscle, sets: [{weight,reps}], p
 let isLoaded = false;
 let autosaveTimer = null;
 let saveStatusEl;
+let pendingBase64 = null;
 
 requireAuth(async (user) => {
   uid = user.uid;
@@ -31,7 +33,38 @@ requireAuth(async (user) => {
   document.getElementById("startTime").addEventListener("change", scheduleAutosave);
   document.getElementById("endTime").addEventListener("change", scheduleAutosave);
   document.getElementById("clearSessionBtn")?.addEventListener("click", onDiscard);
-
+  document.getElementById("photoPickBtn").addEventListener("click", () => {
+    document.getElementById("photoInput").click();
+  });
+  document.getElementById("photoInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById("photoStatus").textContent = "Compressing…";
+    document.getElementById("photoPreview").style.display = "block";
+    try {
+      pendingBase64 = await compressImage(file);
+      document.getElementById("previewImg").src = pendingBase64;
+      document.getElementById("photoStatus").textContent = "Ready to upload";
+      document.getElementById("photoUploadBtn").style.display = "block";
+    } catch(e){
+      toast("Couldn't process image — try again");
+    }
+  });
+  document.getElementById("photoUploadBtn").addEventListener("click", async () => {
+    if (!pendingBase64) return;
+    const btn = document.getElementById("photoUploadBtn");
+    btn.disabled = true; btn.textContent = "Uploading…";
+    try {
+      await uploadGymPhoto(uid, pendingBase64);
+      document.getElementById("photoStatus").textContent = "Uploaded ✓";
+      document.getElementById("photoUploadBtn").style.display = "none";
+      toast("Photo uploaded");
+      pendingBase64 = null;
+    } catch(e){
+      toast("Upload failed — check connection");
+      btn.disabled = false; btn.textContent = "Upload";
+    }
+  });
   isLoaded = true;
 });
 
@@ -290,8 +323,16 @@ async function onFinalize(){
       exercises: cleanExercises
     });
     await clearDraftWorkout(uid);
-    toast("Workout saved");
-    setTimeout(() => window.location.href = "index.html", 600);
+    toast("Workout saved ✓");
+    document.getElementById("saveBtn").textContent = "Saved ✓";
+    document.getElementById("photoSection").style.display = "block";
+    document.getElementById("photoSection").scrollIntoView({ behavior: "smooth" });
+    // Add a "Done" button to go home after optional photo
+    const doneBtn = document.createElement("button");
+    doneBtn.className = "btn btn-ghost btn-block mt-16";
+    doneBtn.textContent = "Done → Go home";
+    doneBtn.addEventListener("click", () => window.location.href = "index.html");
+    document.getElementById("photoSection").appendChild(doneBtn);
   } catch (err){
     toast("Couldn't save — check connection");
     btn.disabled = false; btn.textContent = "Save workout";
