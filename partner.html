@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juu's Workout Stats</title>
+    <title>Juu's Workout· Progress</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -516,6 +516,14 @@
             </div>
         </header>
 
+        <!-- GYM PHOTO CARD -->
+        <div id="photo-card" class="status-card" style="display: none; padding: 24px;">
+            <div style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
+                <img id="gym-photo" alt="Gym Photo" loading="lazy" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-amber); display: block;" />
+                <span id="photo-label" style="font-size: 13px; font-weight: 600; color: var(--text-white-muted); display: flex; align-items: center; gap: 6px; font-family: var(--font-body);"></span>
+            </div>
+        </div>
+
         <!-- CURRENT STATUS CARD -->
         <div class="status-card">
             <!-- Streak -->
@@ -590,14 +598,6 @@
                 <div class="recovery-grid" id="recovery-grid-display">
                     <!-- Loaded dynamically -->
                 </div>
-            </div>
-        </div>
-
-        <!-- GYM PHOTO CARD -->
-        <div id="photo-card" class="status-card" style="display: none; padding: 24px;">
-            <div style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
-                <img id="gym-photo" alt="Gym Photo" loading="lazy" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-amber); display: block;" />
-                <span id="photo-label" style="font-size: 13px; font-weight: 600; color: var(--text-white-muted); display: flex; align-items: center; gap: 6px; font-family: var(--font-body);"></span>
             </div>
         </div>
 
