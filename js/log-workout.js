@@ -20,7 +20,7 @@ requireAuth(async (user) => {
   exercises = await getExercises(uid);
   renderMuscleChips();
   wireTimeInputs();
-  wireSearch();
+  wireDropdown();
 
   await loadDraftIfAny();
 
@@ -131,40 +131,41 @@ function syncMuscleChipUI(){
     btn.classList.toggle("amber", on);
     btn.style.borderColor = on ? "var(--amber)" : "var(--line)";
   });
+  renderDropdown();
 }
 
 // ---------- exercise search ----------
-function wireSearch(){
-  const input = document.getElementById("exerciseSearch");
-  const results = document.getElementById("searchResults");
-  input.addEventListener("input", () => renderSearchResults(input.value.trim().toLowerCase()));
-  input.addEventListener("focus", () => renderSearchResults(input.value.trim().toLowerCase()));
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest("#exerciseSearch") && !e.target.closest("#searchResults")) results.innerHTML = "";
+function wireDropdown(){
+  renderDropdown();
+  document.getElementById("addExerciseBtn").addEventListener("click", () => {
+    const id = document.getElementById("exerciseSelect").value;
+    if (id) addExerciseById(id);
   });
 }
-function renderSearchResults(q){
-  const results = document.getElementById("searchResults");
-  if (!q){ results.innerHTML = ""; return; }
-  const pool = selectedMuscles.size ? exercises.filter(ex => selectedMuscles.has(ex.muscle)) : exercises;
-  const source = pool.length ? pool : exercises;
-  const matches = source.filter(ex => ex.name.toLowerCase().includes(q)).slice(0, 8);
-  if (!matches.length){ results.innerHTML = `<div class="sr-item muted">No matches</div>`; return; }
-  results.innerHTML = matches.map(ex => `<div class="sr-item" data-id="${ex.id}">${ex.name}<span class="sr-muscle">${ex.muscle}</span></div>`).join("");
-  results.querySelectorAll(".sr-item[data-id]").forEach(row => row.addEventListener("click", () => {
-    addExerciseById(row.dataset.id);
-    document.getElementById("exerciseSearch").value = "";
-    results.innerHTML = "";
-  }));
+
+function renderDropdown(){
+  const sel = document.getElementById("exerciseSelect");
+  if (!sel) return;
+  const groups = {};
+  for (const ex of exercises){
+    if (selectedMuscles.size && !selectedMuscles.has(ex.muscle)) continue;
+    (groups[ex.muscle] = groups[ex.muscle] || []).push(ex);
+  }
+  const useGroups = Object.keys(groups).length ? groups : groupAll();
+  sel.innerHTML = Object.entries(useGroups).map(([muscle, list]) =>
+    `<optgroup label="${muscle}">${list.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join("")}</optgroup>`
+  ).join("");
 }
+
 async function addExerciseById(id){
-  if (addedExercises.find(e => e.exerciseId === id)) { toast("Already added"); return; }
+  if (addedExercises.find(e => e.exerciseId === id)){ toast("Already added"); return; }
   const ex = exercises.find(e => e.id === id);
   if (!ex) return;
   selectedMuscles.add(ex.muscle);
   syncMuscleChipUI();
+  renderDropdown();
   const prev = await getLastPerformance(uid, id);
-  addedExercises.push({ exerciseId: id, name: ex.name, muscle: ex.muscle, sets: [{weight:"", reps:""}], prev });
+  addedExercises.push({ exerciseId: id, name: ex.name, muscle: ex.muscle, sets:[{weight:"",reps:""}], prev });
   renderExerciseList();
   scheduleAutosave();
 }
