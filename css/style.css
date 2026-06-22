@@ -270,9 +270,9 @@ section + section{ margin-top: 34px; }
   outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
-.field-row{ display:flex; gap: 8px; flex-wrap: wrap; }
-.field-row .field{ flex: 1 1 120px; min-width: 0; max-width: 100%; margin-bottom: 16px; }
-.field-row input, .field-row select{ font-size: 14px; padding: 11px 8px; }
+.field-row{ display:flex; gap: 8px; flex-wrap: nowrap; }
+.field-row .field{ flex: 1 1 0; min-width: 0; max-width: 50%; margin-bottom: 16px; }
+.field-row input, .field-row select{ font-size: 14px; padding: 10px 6px; }
 
 .empty{
   text-align:center;
@@ -418,8 +418,8 @@ section + section{ margin-top: 34px; }
 /* Exercise set row in logger */
 .set-row{
   display:grid;
-  grid-template-columns: 20px minmax(0,1fr) minmax(0,1fr) 30px;
-  gap: 6px;
+  grid-template-columns: 18px minmax(0,1fr) minmax(0,1fr) 24px;
+  gap: 4px;
   align-items:center;
   margin-bottom: 8px;
 }
@@ -553,14 +553,16 @@ section + section{ margin-top: 34px; }
 .stepper{ display:flex; align-items:stretch; gap:2px; min-width:0; }
 .stepper input{ text-align:center; padding: 10px 2px; min-width:0; flex:1; }
 .step-btn{
-  flex: 0 0 24px;
+  flex: 0 0 20px;
+  width: 20px;
   border: 1px solid var(--line);
   background: var(--paper-dim);
   color: var(--ink);
   border-radius: 6px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
+  padding: 0;
 }
 .step-btn:active{ background: var(--amber-dim); color: var(--amber); }
 
