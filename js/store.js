@@ -222,3 +222,69 @@ export function computeRecovery(workouts, muscleGroups){
   }
   return result;
 }
+// ---------- gym photos (base64, 7-slot rolling queue) ----------
+
+const PHOTO_SLOTS = 7;
+
+// Compress + encode image to base64 JPEG
+export function compressImage(file){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > h && w > MAX){ h = Math.round(h * MAX/w); w = MAX; }
+      else if (h > w && h > MAX){ w = Math.round(w * MAX/h); h = MAX; }
+      else if (w > MAX){ h = Math.round(h * MAX/w); w = MAX; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Get the queue metadata (which slot to write next)
+async function getQueueMeta(uid){
+  const snap = await getDoc(doc(db, "users", uid, "meta", "photoQueue"));
+  return snap.exists() ? snap.data() : { nextSlot: 1 };
+}
+
+// Upload a compressed base64 image into the next slot
+export async function uploadGymPhoto(uid, base64){
+  const meta = await getQueueMeta(uid);
+  const slot = meta.nextSlot || 1;
+  const slotId = `slot_${slot}`;
+  const dateStr = todayStr();
+  // Write the photo document
+  await setDoc(doc(db, "users", uid, "photoslots", slotId), {
+    dateStr, base64, slot, uploadedAt: Timestamp.now()
+  });
+  // Advance the pointer (wraps 1-7)
+  const nextSlot = slot >= PHOTO_SLOTS ? 1 : slot + 1;
+  await setDoc(doc(db, "users", uid, "meta", "photoQueue"), {
+    nextSlot, lastUploadDate: dateStr, lastUploadSlot: slot
+  });
+  return slotId;
+}
+
+// Get the most recent photo across all slots
+export async function getLatestPhoto(uid){
+  const snap = await getDocs(collection(db, "users", uid, "photoslots"));
+  if (snap.empty) return null;
+  const slots = snap.docs.map(d => d.data()).filter(d => d.base64);
+  if (!slots.length) return null;
+  slots.sort((a,b) => (b.uploadedAt?.seconds||0) - (a.uploadedAt?.seconds||0));
+  return slots[0]; // { dateStr, base64, uploadedAt }
+}
+
+// Get today's photo specifically (for partner page "uploaded today" check)
+export async function getTodaysPhoto(uid){
+  const latest = await getLatestPhoto(uid);
+  if (!latest) return null;
+  return latest.dateStr === todayStr() ? latest : null;
+}
