@@ -86,6 +86,21 @@
     <div class="muted center mono" style="font-size:11.5px;margin-top:10px;">Your progress autosaves as you go — tap Save when the session is done.</div>
   </section>
 
+  <section id="photoSection" style="display:none;">
+    <div class="section-head"><h2>Today's photo</h2><span class="label">optional</span></div>
+    <div class="card">
+      <div id="photoPreview" style="display:none;margin-bottom:14px;">
+        <img id="previewImg" style="width:100%;border-radius:var(--radius-sm);object-fit:cover;max-height:280px;">
+        <div class="label mt-8" id="photoStatus"></div>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost btn-block" id="photoPickBtn">📷 Add photo</button>
+        <button class="btn btn-primary btn-block" id="photoUploadBtn" style="display:none;">Upload</button>
+      </div>
+    </div>
+  </section>
+
 </main>
 </div>
 
