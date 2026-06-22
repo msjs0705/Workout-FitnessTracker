@@ -1,19 +1,21 @@
 import { requireAuth } from "./auth-guard.js";
-import {
-  getWorkoutsByMonth, getCardioByMonth,
+import { getWorkoutsByMonth, getCardioByMonth, getRestDays,
+  setRestDay, deleteRestDay,
   deleteWorkout, deleteCardio, updateWorkout,
-  dateToStr, todayStr, formatNice
-} from "./store.js";
+  dateToStr, todayStr, formatNice } from "./store.js";
 import { undoableAction } from "./ui.js";
 
 let uid;
 let viewDate = new Date(); viewDate.setDate(1);
 let openDateStr = null;
+let allRestDays = new Set(); // dateStr strings, all-time
 // Cache fetched months so navigating back doesn't re-fetch
 const monthCache = {}; // key "YYYY-MM" -> { workouts, cardio }
 
 requireAuth(async (user) => {
   uid = user.uid;
+  const rds = await getRestDays(uid);
+  allRestDays = new Set(rds);
   await loadMonth();
   document.getElementById("prevMonth").addEventListener("click", async () => {
     viewDate.setMonth(viewDate.getMonth()-1);
@@ -78,14 +80,16 @@ function renderCalendar(){
   for (let day = 1; day <= daysInMonth; day++){
     const dateStr = dateToStr(new Date(year, month, day));
     const entry = entryFor(dateStr);
+    const isRestDay = allRestDays.has(dateStr);
     const hasWorkout = entry.strength.length > 0;
     const hasCardio = entry.cardio.length > 0;
     const muscles = hasWorkout ? [...new Set(entry.strength.flatMap(w => w.muscles||[]))].join(", ") : "";
     const cardioIndicator = hasCardio ? `<div class="cal-cardio-dot"></div>` : "";
     const muscleLabel = muscles ? `<div class="cal-muscles">${muscles}</div>` : "";
-    html += `<div class="cal-day ${dateStr===today?'today':''} ${hasWorkout?'has-workout':''}" data-date="${dateStr}">
+    const restLabel = isRestDay && !hasWorkout ? `<div class="cal-muscles" style="color:var(--teal);">Rest</div>` : "";
+    html += `<div class="cal-day ${dateStr===today?'today':''} ${hasWorkout?'has-workout':''} ${isRestDay && !hasWorkout ? 'is-rest' : ''}" data-date="${dateStr}">
       <div class="cal-num">${day}</div>
-      ${muscleLabel}
+      ${muscleLabel}${restLabel}
       ${cardioIndicator}
     </div>`;
   }
@@ -100,7 +104,22 @@ function showDay(dateStr){
   panel.style.display = "block";
   document.getElementById("dayDetailTitle").textContent = formatNice(dateStr);
   const body = document.getElementById("dayDetailBody");
-
+  const isRest = allRestDays.has(dateStr);
+  const restBtn = document.getElementById("restDayBtn");
+  restBtn.textContent = isRest ? "✕ Remove rest day" : "＋ Mark as rest day";
+  restBtn.style.background = isRest ? "var(--red-dim)" : "var(--teal-dim)";
+  restBtn.style.color = isRest ? "var(--red)" : "var(--teal)";
+  restBtn.onclick = async () => {
+    if (allRestDays.has(dateStr)){
+      await deleteRestDay(uid, dateStr);
+      allRestDays.delete(dateStr);
+    } else {
+      await setRestDay(uid, dateStr);
+      allRestDays.add(dateStr);
+    }
+    renderCalendar();
+    showDay(dateStr);
+  };
   if (!entry.strength.length && !entry.cardio.length){
     body.innerHTML = `<div class="empty"><div class="big">Rest day</div>Nothing logged on this date.</div>`;
     return;
