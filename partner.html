@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juu's Workout · Stats</title>
+    <title>Juu's Workout· Progress</title>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -507,8 +507,8 @@
         <!-- HEADER -->
         <header>
             <div class="logo">
-                <span class="owner">Juu's</span>
-                <span class="wordmark">Workout Stats</span>
+                <span class="owner">Juu</span>
+                <span class="wordmark">Ironlog</span>
             </div>
             <div class="refresh-status">
                 <span class="status-dot"></span>
@@ -590,6 +590,14 @@
                 <div class="recovery-grid" id="recovery-grid-display">
                     <!-- Loaded dynamically -->
                 </div>
+            </div>
+        </div>
+
+        <!-- GYM PHOTO CARD -->
+        <div id="photo-card" class="status-card" style="display: none; padding: 24px;">
+            <div style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
+                <img id="gym-photo" alt="Gym Photo" loading="lazy" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-amber); display: block;" />
+                <span id="photo-label" style="font-size: 13px; font-weight: 600; color: var(--text-white-muted); display: flex; align-items: center; gap: 6px; font-family: var(--font-body);"></span>
             </div>
         </div>
 
@@ -724,11 +732,12 @@
             if (!db) return;
             try {
                 // Fetch data in parallel
-                const [workoutsSnap, cardioSnap, weightSnap, restDaysSnap] = await Promise.all([
+                const [workoutsSnap, cardioSnap, weightSnap, restDaysSnap, photosSnap] = await Promise.all([
                     getDocs(collection(db, "users", ownerUid, "workouts")),
                     getDocs(collection(db, "users", ownerUid, "cardio")),
                     getDocs(collection(db, "users", ownerUid, "bodyweight")),
-                    getDocs(collection(db, "users", ownerUid, "restdays"))
+                    getDocs(collection(db, "users", ownerUid, "restdays")),
+                    getDocs(collection(db, "users", ownerUid, "photoslots"))
                 ]);
 
                 // Map docs
@@ -743,9 +752,24 @@
                 });
                 const restDays = restDaysSnap.docs.map(doc => doc.id);
 
+                const photos = photosSnap.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(p => p.base64);
+
+                // Helper to safely parse dates for sorting
+                const getUploadedAtDate = (uploadedAt) => {
+                    if (!uploadedAt) return new Date(0);
+                    if (typeof uploadedAt.toDate === 'function') return uploadedAt.toDate();
+                    if (uploadedAt.seconds) return new Date(uploadedAt.seconds * 1000);
+                    return new Date(uploadedAt);
+                };
+
+                photos.sort((a, b) => getUploadedAtDate(b.uploadedAt) - getUploadedAtDate(a.uploadedAt));
+                const latestPhoto = photos.length > 0 ? photos[0] : null;
+
                 // Render metrics and charts
                 const todayStr = getLocalDateStr();
-                processDashboardData(workouts, cardio, bodyweight, restDays, todayStr);
+                processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr);
 
                 // Update timestamp
                 lastUpdatedTime = new Date();
@@ -769,7 +793,7 @@
         }
 
         // Core calculations & UI population
-        function processDashboardData(workouts, cardio, bodyweight, restDays, todayStr) {
+        function processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr) {
             // Sort arrays descending
             workouts.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
             cardio.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
@@ -1005,6 +1029,42 @@
                 const cardioLabels = weeks.map(w => w.label);
                 const cardioValues = weeks.map(w => w.distance);
                 renderCardioChart(cardioLabels, cardioValues);
+            }
+
+            // 8. GYM PHOTO SECTION
+            const photoCard = document.getElementById("photo-card");
+            const gymPhoto = document.getElementById("gym-photo");
+            const photoLabel = document.getElementById("photo-label");
+            
+            if (latestPhoto) {
+                photoCard.style.display = "block";
+                
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayStr = getLocalDateStr(yesterday);
+                
+                let labelText = "";
+                if (latestPhoto.dateStr === todayStr) {
+                    labelText = "📸 Today";
+                } else if (latestPhoto.dateStr === yesterdayStr) {
+                    labelText = "📸 Yesterday";
+                } else {
+                    const daysDiff = getDaysDifference(todayStr, latestPhoto.dateStr);
+                    labelText = `📸 ${daysDiff} ${daysDiff === 1 ? 'day' : 'days'} ago`;
+                }
+                photoLabel.innerText = labelText;
+                
+                // Only set src with 100ms delay for performance
+                setTimeout(() => {
+                    let srcVal = latestPhoto.base64;
+                    if (!srcVal.startsWith("data:")) {
+                        srcVal = "data:image/jpeg;base64," + srcVal;
+                    }
+                    gymPhoto.src = srcVal;
+                }, 100);
+            } else {
+                photoCard.style.display = "none";
+                gymPhoto.src = "";
             }
         }
 
