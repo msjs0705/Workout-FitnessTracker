@@ -21,7 +21,7 @@ export function requireAuth(onReady){
 function wireUserChip(user){
   const chip = document.getElementById("userChip");
   if (!chip) return;
-  const emailShort = (user.email || "").split("@")[0];
+  const emailShort = user.displayName || (user.email || "").split("@")[0];
   chip.innerHTML = `<span>${emailShort}</span><button id="logoutBtn" title="Sign out">⏻</button>`;
   document.getElementById("logoutBtn").addEventListener("click", async () => {
     await signOut(auth);
