@@ -270,8 +270,9 @@ section + section{ margin-top: 34px; }
   outline: 2px solid var(--amber);
   outline-offset: 1px;
 }
-.field-row{ display:flex; gap: 10px; flex-wrap: wrap; }
-.field-row .field{ flex: 1 1 130px; min-width: 0; margin-bottom: 16px; }
+.field-row{ display:flex; gap: 8px; flex-wrap: wrap; }
+.field-row .field{ flex: 1 1 120px; min-width: 0; max-width: 100%; margin-bottom: 16px; }
+.field-row input, .field-row select{ font-size: 14px; padding: 11px 8px; }
 
 .empty{
   text-align:center;
