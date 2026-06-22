@@ -33,8 +33,16 @@ function renderCalendar(){
   for (let day = 1; day <= daysInMonth; day++){
     const dateStr = dateToStr(new Date(year, month, day));
     const entry = entryFor(dateStr);
-    const dots = (entry.strength.length || entry.cardio.length) ? `<div class="dots">${entry.strength.length ? '<span class="dot strength"></span>' : ''}${entry.cardio.length ? '<span class="dot cardio"></span>' : ''}</div>` : '';
-    html += `<div class="cal-day ${dateStr===today?'today':''}" data-date="${dateStr}">${day}${dots}</div>`;
+    const hasWorkout = entry.strength.length > 0;
+    const hasCardio = entry.cardio.length > 0;
+    const muscles = hasWorkout ? [...new Set(entry.strength.flatMap(w => w.muscles||[]))].join(", ") : "";
+    const cardioIndicator = hasCardio ? `<div class="cal-cardio-dot"></div>` : "";
+    const muscleLabel = muscles ? `<div class="cal-muscles">${muscles}</div>` : "";
+    html += `<div class="cal-day ${dateStr===today?'today':''} ${hasWorkout?'has-workout':''}" data-date="${dateStr}">
+      <div class="cal-num">${day}</div>
+      ${muscleLabel}
+      ${cardioIndicator}
+    </div>`;
   }
   document.getElementById("calDays").innerHTML = html;
   document.querySelectorAll(".cal-day[data-date]").forEach(el => el.addEventListener("click", () => showDay(el.dataset.date)));
