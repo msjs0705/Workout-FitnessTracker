@@ -1,5 +1,5 @@
 import { requireAuth } from "./auth-guard.js";
-import { getWorkouts, getCardio, getPRs, strToDate, dateToStr, computeStreak } from "./store.js";
+import { getWorkouts, getCardio, getPRs, getRestDays, strToDate, dateToStr, computeStreak } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 
 const MUSCLE_COLORS = {
@@ -9,25 +9,25 @@ const MUSCLE_COLORS = {
 
 requireAuth(async (user) => {
   const uid = user.uid;
-  const [workouts, cardio, prs] = await Promise.all([getWorkouts(uid), getCardio(uid), getPRs(uid)]);
-
-  renderStreak(workouts, cardio);
-  renderHeatmap(workouts, cardio);
+  const [workouts, cardio, prs, restDays] = await Promise.all([getWorkouts(uid), getCardio(uid), getPRs(uid), getRestDays(uid)]);
+  renderStreak(workouts, cardio, restDays);
+  renderHeatmap(workouts, cardio, restDays);
   renderCardioChart(cardio);
   renderMuscleChart(workouts);
   renderProgression(workouts);
   renderPRs(prs);
 });
 
-function renderStreak(workouts, cardio){
-  const streak = computeStreak(workouts, cardio);
+function renderStreak(workouts, cardio, restDays = []){
+  const streak = computeStreak(workouts, cardio, restDays);
   document.getElementById("streakLabel").textContent = streak > 0 ? `🔥 ${streak} day streak` : "";
 }
 
-function renderHeatmap(workouts, cardio){
+function renderHeatmap(workouts, cardio, restDays = []){
   const flags = {};
   for (const w of workouts) flags[w.dateStr] = (flags[w.dateStr]||0) | 1;
   for (const c of cardio) flags[c.dateStr] = (flags[c.dateStr]||0) | 2;
+  for (const r of restDays) flags[r] = flags[r] || 3; // gold = rest day
   const totalDays = 98;
   const today = new Date();
   let html = "";
