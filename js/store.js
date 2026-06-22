@@ -188,14 +188,45 @@ export async function deleteRestDay(uid, dateStr){
 // ---------- streak ----------
 // Consecutive days (counting back from today, or yesterday if today
 // hasn't happened yet) with at least one workout or cardio session.
+// ---------- streak ----------
+// Consecutive days (counting back from today, or yesterday if today
+// hasn't happened yet) with at least one workout, cardio, or rest session.
 export function computeStreak(workouts, cardio, restDays = []){
-  const days = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr)]);
+  // 1. Include restDays in the Set and filter out any empties
+  const days = new Set([
+    ...workouts.map(w => w.dateStr), 
+    ...cardio.map(c => c.dateStr),
+    ...restDays
+  ].filter(Boolean));
+
+  const activityDates = Array.from(days).sort((a, b) => b.localeCompare(a));
+  if (activityDates.length === 0) return 0;
+
+  const latestActivityDate = activityDates[0];
+  const today = todayStr();
+
+  // 2. Timezone-safe difference calculation
+  const [ty, tm, td] = today.split('-').map(Number);
+  const [ly, lm, ld] = latestActivityDate.split('-').map(Number);
+  const daysDiff = Math.floor((new Date(ty, tm - 1, td) - new Date(ly, lm - 1, ld)) / 86400000);
+
   let streak = 0;
-  const cursor = new Date();
-  if (!days.has(dateToStr(cursor))) cursor.setDate(cursor.getDate() - 1);
-  while (days.has(dateToStr(cursor))){
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
+  
+  // If latest activity was today or yesterday, the streak is alive
+  if (daysDiff <= 1) {
+    streak = 1;
+    let checkDate = new Date(ly, lm - 1, ld);
+
+    // Walk backwards counting consecutive days
+    while (true) {
+      checkDate.setDate(checkDate.getDate() - 1);
+      const checkDateStr = dateToStr(checkDate);
+      if (days.has(checkDateStr)) {
+        streak++;
+      } else {
+        break;
+      }
+    }
   }
   return streak;
 }
