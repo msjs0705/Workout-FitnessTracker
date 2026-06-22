@@ -9,10 +9,11 @@
 // =========================================================
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDPLPcTZj7qartfiWr_0LHuiC2V3NxyjxY",
+  authDomain: "workout-94d16.firebaseapp.com",
+  projectId: "workout-94d16",
+  storageBucket: "workout-94d16.firebasestorage.app",
+  messagingSenderId: "788877407686",
+  appId: "1:788877407686:web:e8d9d90223cae4e9146ec7",
+  measurementId: "G-MZKRVWNXKQ"
 };
