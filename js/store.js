@@ -174,11 +174,21 @@ export async function getBodyWeights(uid){
 export async function deleteBodyWeight(uid, dateStr){
   return deleteDoc(doc(db, "users", uid, "bodyweight", dateStr));
 }
-
+// ---------- rest days ----------
+export async function setRestDay(uid, dateStr){
+  return setDoc(doc(db, "users", uid, "restdays", dateStr), { dateStr, createdAt: Timestamp.now() });
+}
+export async function getRestDays(uid){
+  const snap = await getDocs(collection(db, "users", uid, "restdays"));
+  return snap.docs.map(d => d.id); // returns array of dateStr strings
+}
+export async function deleteRestDay(uid, dateStr){
+  return deleteDoc(doc(db, "users", uid, "restdays", dateStr));
+}
 // ---------- streak ----------
 // Consecutive days (counting back from today, or yesterday if today
 // hasn't happened yet) with at least one workout or cardio session.
-export function computeStreak(workouts, cardio){
+export function computeStreak(workouts, cardio, restDays = []){
   const days = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr)]);
   let streak = 0;
   const cursor = new Date();
