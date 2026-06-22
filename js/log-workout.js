@@ -30,6 +30,7 @@ requireAuth(async (user) => {
   document.getElementById("dateInput").addEventListener("change", scheduleAutosave);
   document.getElementById("startTime").addEventListener("change", scheduleAutosave);
   document.getElementById("endTime").addEventListener("change", scheduleAutosave);
+  document.getElementById("clearSessionBtn")?.addEventListener("click", onDiscard);
 
   isLoaded = true;
 });
@@ -170,6 +171,8 @@ async function addExerciseById(id){
 
 // ---------- exercise / set list ----------
 function renderExerciseList(){
+  const wrap = document.getElementById("clearSessionWrap");
+  if (wrap) wrap.style.display = addedExercises.length ? "block": "none";
   const list = document.getElementById("exerciseList");
   document.getElementById("noExercises").style.display = addedExercises.length ? "none" : "block";
   list.innerHTML = addedExercises.map((ex, exIdx) => {
