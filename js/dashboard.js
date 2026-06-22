@@ -1,15 +1,14 @@
 import { requireAuth } from "./auth-guard.js";
-import { getWorkouts, getCardio, getBodyWeights, computeRecovery, computeStreak, todayStr, strToDate, formatNice } from "./store.js";
+import { getWorkouts, getCardio, getBodyWeights, getRestDays, computeRecovery, computeStreak, todayStr, strToDate, formatNice } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 
 requireAuth(async (user) => {
   startClock();
 
-  const [workouts, cardio, weights] = await Promise.all([
-    getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid)
+  const [workouts, cardio, weights, restDays] = await Promise.all([
+    getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid), getRestDays(user.uid)
   ]);
-
-  renderStreak(workouts, cardio);
+  renderStreak(workouts, cardio, restDays);
   renderRecommendation(workouts);
   renderRecovery(workouts);
   renderWeekStats(workouts, cardio, weights);
@@ -27,8 +26,8 @@ function startClock(){
   setInterval(tick, 15000);
 }
 
-function renderStreak(workouts, cardio){
-  const streak = computeStreak(workouts, cardio);
+function renderStreak(workouts, cardio, restDays = []){
+  const streak = computeStreak(workouts, cardio, restDays);
   const badge = document.getElementById("streakBadge");
   if (streak > 0){
     badge.style.display = "inline-flex";
