@@ -2,7 +2,7 @@ import { requireAuth } from "./auth-guard.js";
 import {
   getExercises, addWorkout, getLastPerformance, getWorkouts, todayStr,
   saveDraftWorkout, getDraftWorkout, clearDraftWorkout,
-  compressImage, uploadGymPhoto
+  compressImage, uploadGymPhoto, updateWorkout
 } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 import { toast } from "./ui.js";
@@ -15,6 +15,9 @@ let autosaveTimer = null;
 let saveStatusEl;
 let pendingBase64 = null;
 
+const urlParams = new URLSearchParams(window.location.search);
+const editId = urlParams.get('edit');
+
 requireAuth(async (user) => {
   uid = user.uid;
   saveStatusEl = document.getElementById("saveStatus");
@@ -24,7 +27,24 @@ requireAuth(async (user) => {
   wireTimeInputs();
   wireDropdown();
 
-  await loadDraftIfAny();
+  if (editId) {
+    const all = await getWorkouts(uid);
+    const w = all.find(x => x.id === editId);
+    if (w) {
+      document.getElementById("dateInput").value = w.dateStr;
+      document.getElementById("startTime").value = w.startTime || "";
+      document.getElementById("endTime").value = w.endTime || "";
+      selectedMuscles = new Set(w.muscles || []);
+      syncMuscleChipUI();
+      addedExercises = await Promise.all((w.exercises || []).map(async (e) => ({
+        ...e, prev: await getLastPerformance(uid, e.exerciseId)
+      })));
+      renderExerciseList();
+      document.getElementById("draftBanner").style.display = "none";
+    }
+  } else {
+    await loadDraftIfAny();
+  }
 
   document.getElementById("repeatLastBtn").addEventListener("click", onRepeatLast);
   document.getElementById("saveBtn").addEventListener("click", onFinalize);
@@ -89,7 +109,7 @@ async function loadDraftIfAny(){
 }
 
 function scheduleAutosave(){
-  if (!isLoaded) return;
+  if (!isLoaded || editId) return;
   setSaveStatus("Saving…");
   clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(doAutosave, 600);
@@ -188,6 +208,14 @@ function renderDropdown(){
   sel.innerHTML = Object.entries(useGroups).map(([muscle, list]) =>
     `<optgroup label="${muscle}">${list.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join("")}</optgroup>`
   ).join("");
+}
+
+function groupAll() {
+  const groups = {};
+  for (const ex of exercises){
+    (groups[ex.muscle] = groups[ex.muscle] || []).push(ex);
+  }
+  return groups;
 }
 
 async function addExerciseById(id){
@@ -313,16 +341,23 @@ async function onFinalize(){
   const muscles = [...new Set(cleanExercises.map(e => e.muscle))];
   const btn = document.getElementById("saveBtn");
   btn.disabled = true; btn.textContent = "Saving…";
+  
+  const payload = {
+    dateStr,
+    startTime: document.getElementById("startTime").value || null,
+    endTime: document.getElementById("endTime").value || null,
+    durationMin: getDurationMin(),
+    muscles,
+    exercises: cleanExercises
+  };
+
   try {
-    await addWorkout(uid, {
-      dateStr,
-      startTime: document.getElementById("startTime").value || null,
-      endTime: document.getElementById("endTime").value || null,
-      durationMin: getDurationMin(),
-      muscles,
-      exercises: cleanExercises
-    });
-    await clearDraftWorkout(uid);
+    if (editId) {
+      await updateWorkout(uid, editId, payload);
+    } else {
+      await addWorkout(uid, payload);
+      await clearDraftWorkout(uid);
+    }
     toast("Workout saved ✓");
     document.getElementById("saveBtn").textContent = "Saved ✓";
     document.getElementById("photoSection").style.display = "block";
