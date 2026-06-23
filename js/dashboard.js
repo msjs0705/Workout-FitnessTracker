@@ -1,13 +1,19 @@
 import { requireAuth } from "./auth-guard.js";
-import { getWorkouts, getCardio, getBodyWeights, getRestDays, computeRecovery, computeStreak, todayStr, strToDate, formatNice } from "./store.js";
+import { getWorkouts, getCardio, getBodyWeights, getRestDays, computeRecovery, computeStreak, todayStr, strToDate, formatNice, getPartnerComment } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 
 requireAuth(async (user) => {
   startClock();
 
-  const [workouts, cardio, weights, restDays] = await Promise.all([
-    getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid), getRestDays(user.uid)
+  const [workouts, cardio, weights, restDays, partnerComment] = await Promise.all([
+    getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid), getRestDays(user.uid), getPartnerComment(user.uid)
   ]);
+
+  // Show the comment if it exists
+  if (partnerComment && partnerComment.text) {
+    document.getElementById("partnerCommentText").textContent = `"${partnerComment.text}"`;
+    document.getElementById("partnerCommentSection").style.display = "block";
+  }
   renderStreak(workouts, cardio, restDays);
   renderRecommendation(workouts);
   renderRecovery(workouts);
