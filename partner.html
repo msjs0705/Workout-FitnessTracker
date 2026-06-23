@@ -521,6 +521,11 @@
             <div style="display: flex; flex-direction: column; gap: 14px; width: 100%;">
                 <img id="gym-photo" alt="Gym Photo" loading="lazy" style="width: 100%; max-height: 320px; object-fit: cover; border-radius: 12px; border: 2px solid var(--accent-amber); display: block;" />
                 <span id="photo-label" style="font-size: 13px; font-weight: 600; color: var(--text-white-muted); display: flex; align-items: center; gap: 6px; font-family: var(--font-body);"></span>
+                
+                <div style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; display: flex; gap: 8px;">
+                    <input type="text" id="partner-comment-input" placeholder="Leave an encouraging comment..." style="flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; font-family: var(--font-body); font-size: 14px;" />
+                    <button id="send-comment-btn" style="padding: 12px 20px; border-radius: 10px; border: none; background: var(--accent-teal); color: white; font-weight: 600; cursor: pointer; font-family: var(--font-body); font-size: 14px; transition: opacity 0.2s;">Send</button>
+                </div>
             </div>
         </div>
 
@@ -627,7 +632,7 @@
     <!-- MAIN FIREBASE MODULE JS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // REAL CONFIG FOR FIRESTORE
         const firebaseConfig = {
@@ -1256,6 +1261,36 @@
                 textEl.innerText = `Updated ${diffMins} mins ago`;
             }
         }
+        // Handle Comment Submission
+        document.getElementById("send-comment-btn").addEventListener("click", async () => {
+            const input = document.getElementById("partner-comment-input");
+            const text = input.value.trim();
+            if (!text) return;
+
+            const btn = document.getElementById("send-comment-btn");
+            const originalText = btn.innerText;
+            btn.innerText = "Sending...";
+            btn.disabled = true;
+
+            try {
+                // Overwrite the single comment document so it just reflects the latest
+                await setDoc(doc(db, "users", ownerUid, "meta", "partnerComment"), {
+                    text: text,
+                    timestamp: new Date().toISOString()
+                });
+                input.value = "";
+                btn.innerText = "Sent! ✓";
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }, 2500);
+            } catch (err) {
+                console.error("Comment Error:", err);
+                showError("Failed to send comment.");
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        });
 
         updateDashboard();
         setInterval(updateDashboard, 180000);
