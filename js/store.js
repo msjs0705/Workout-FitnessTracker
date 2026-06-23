@@ -319,3 +319,8 @@ export async function getTodaysPhoto(uid){
   if (!latest) return null;
   return latest.dateStr === todayStr() ? latest : null;
 }
+// ---------- partner comment ----------
+export async function getPartnerComment(uid){
+  const snap = await getDoc(doc(db, "users", uid, "meta", "partnerComment"));
+  return snap.exists() ? snap.data() : null;
+}
