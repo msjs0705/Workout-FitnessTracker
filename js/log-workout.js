@@ -2,7 +2,7 @@ import { requireAuth } from "./auth-guard.js";
 import {
   getExercises, addWorkout, getLastPerformance, getWorkouts, todayStr,
   saveDraftWorkout, getDraftWorkout, clearDraftWorkout,
-  compressImage, uploadGymPhoto, updateWorkout
+  compressImage, uploadGymPhoto, updateWorkout, setBodyWeight
 } from "./store.js";
 import { MUSCLE_GROUPS } from "./exercises-data.js";
 import { toast } from "./ui.js";
@@ -357,6 +357,11 @@ async function onFinalize(){
     } else {
       await addWorkout(uid, payload);
       await clearDraftWorkout(uid);
+    }
+    // --> NEW: Save bodyweight if entered
+    const weightVal = document.getElementById("workoutWeight").value;
+    if (weightVal) {
+      await setBodyWeight(uid, dateStr, weightVal);
     }
     toast("Workout saved ✓");
     document.getElementById("saveBtn").textContent = "Saved ✓";
