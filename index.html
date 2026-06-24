@@ -23,12 +23,14 @@
 <header class="topbar">
   <div class="wordmark"><span class="dot"></span>Ironlog</div>
   <div style="display:flex;align-items:center;gap:8px;">
-    <a href="settings.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Settings">
+    <a href="notifications.html" class="btn btn-ghost btn-sm" style="padding:8px 10px; position:relative;" title="Notifications">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      <span id="notifBadge" style="display:none; position:absolute; top:4px; right:6px; width:8px; height:8px; background:var(--red); border-radius:50%; border:2px solid var(--paper);"></span>
+    </a>
+    <a href="settings.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Account">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
     </a>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 13l3-3M9 5h6"/></svg>
-    </a>
-    <a href="exercises.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Manage exercises">
+    <a href="exercises.html" class="btn btn-ghost btn-sm" style="padding:8px 10px;" title="Settings">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5h0a1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
     </a>
     <div class="user-chip" id="userChip"></div>
