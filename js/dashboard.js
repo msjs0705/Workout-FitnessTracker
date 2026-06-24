@@ -8,12 +8,14 @@ requireAuth(async (user) => {
   const [workouts, cardio, weights, restDays, partnerComment] = await Promise.all([
     getWorkouts(user.uid), getCardio(user.uid), getBodyWeights(user.uid), getRestDays(user.uid), getPartnerComment(user.uid)
   ]);
-
-  // Show the comment if it exists
-  if (partnerComment && partnerComment.text) {
-    document.getElementById("partnerCommentText").textContent = `"${partnerComment.text}"`;
-    document.getElementById("partnerCommentSection").style.display = "block";
+  
+  if (partnerComment && partnerComment.timestamp) {
+    const lastSeen = localStorage.getItem('lastSeenComment');
+    if (!lastSeen || new Date(partnerComment.timestamp) > new Date(lastSeen)) {
+      document.getElementById("notifBadge").style.display = "block";
+    }
   }
+
   renderStreak(workouts, cardio, restDays);
   renderRecommendation(workouts);
   renderRecovery(workouts);
