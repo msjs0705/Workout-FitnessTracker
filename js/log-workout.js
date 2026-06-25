@@ -226,7 +226,7 @@ async function addExerciseById(id){
   syncMuscleChipUI();
   renderDropdown();
   const prev = await getLastPerformance(uid, id);
-  addedExercises.push({ exerciseId: id, name: ex.name, muscle: ex.muscle, sets:[{weight:"",reps:""}], prev });
+  addedExercises.push({ exerciseId: id, name: ex.name, muscle: ex.muscle, sets:[{weight:"",reps:"10"}], prev });
   renderExerciseList();
   scheduleAutosave();
 }
@@ -252,7 +252,10 @@ function renderExerciseList(){
       <div class="set-rows" data-idx="${exIdx}">
         ${ex.sets.map((s, sIdx) => setRowHtml(exIdx, sIdx, s)).join("")}
       </div>
-      <button class="btn btn-ghost btn-sm" data-action="add-set" data-idx="${exIdx}">+ Add set</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-ghost btn-sm" data-action="add-set" data-idx="${exIdx}">+ Add set</button>
+        <button class="btn btn-ghost btn-sm" data-action="dup-set" data-idx="${exIdx}">↻ Repeat set</button>
+      </div>
     </div>`;
   }).join("");
 
@@ -260,16 +263,29 @@ function renderExerciseList(){
     addedExercises.splice(Number(b.dataset.idx), 1);
     renderExerciseList(); scheduleAutosave();
   }));
+  
   list.querySelectorAll('[data-action="add-set"]').forEach(b => b.addEventListener("click", () => {
-    addedExercises[Number(b.dataset.idx)].sets.push({weight:"", reps:""});
+    addedExercises[Number(b.dataset.idx)].sets.push({weight:"", reps:"10"});
     renderExerciseList(); scheduleAutosave();
   }));
+
+  list.querySelectorAll('[data-action="dup-set"]').forEach(b => b.addEventListener("click", () => {
+    const ex = addedExercises[Number(b.dataset.idx)];
+    const lastSet = ex.sets[ex.sets.length - 1];
+    ex.sets.push({ 
+      weight: lastSet ? lastSet.weight : "", 
+      reps: lastSet ? lastSet.reps : "10" 
+    });
+    renderExerciseList(); scheduleAutosave();
+  }));
+
   list.querySelectorAll('[data-action="rm-set"]').forEach(b => b.addEventListener("click", () => {
     const exIdx = Number(b.dataset.exidx), sIdx = Number(b.dataset.sidx);
     addedExercises[exIdx].sets.splice(sIdx, 1);
-    if (!addedExercises[exIdx].sets.length) addedExercises[exIdx].sets.push({weight:"",reps:""});
+    if (!addedExercises[exIdx].sets.length) addedExercises[exIdx].sets.push({weight:"",reps:"10"});
     renderExerciseList(); scheduleAutosave();
   }));
+  
   list.querySelectorAll('[data-action="step"]').forEach(b => b.addEventListener("click", () => {
     const exIdx = Number(b.dataset.exidx), sIdx = Number(b.dataset.sidx), field = b.dataset.field, delta = Number(b.dataset.delta);
     const cur = Number(addedExercises[exIdx].sets[sIdx][field]) || 0;
@@ -279,6 +295,7 @@ function renderExerciseList(){
     addedExercises[exIdx].sets[sIdx][field] = next;
     renderExerciseList(); scheduleAutosave();
   }));
+  
   list.querySelectorAll('input[data-field]').forEach(inp => inp.addEventListener("input", () => {
     const exIdx = Number(inp.dataset.exidx), sIdx = Number(inp.dataset.sidx), field = inp.dataset.field;
     addedExercises[exIdx].sets[sIdx][field] = inp.value;
