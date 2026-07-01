@@ -630,35 +630,22 @@
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
-        } catch (e) {
-            console.error("Firebase Init Error:", e);
-            showError("Firebase configuration failed.");
-        }
+        } catch (e) { console.error("Firebase Init Error:", e); }
 
         let weightChartInstance = null;
+        let cardioChartInstance = null;
         let lastUpdatedTime = null;
         let fetchFailed = false;
 
         function getLocalDateStr(date = new Date()) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
 
         function getDaysDifference(d1Str, d2Str) {
             if (!d1Str || !d2Str) return 0;
             const [y1, m1, d1] = d1Str.split('-').map(Number);
             const [y2, m2, d2] = d2Str.split('-').map(Number);
-            const date1 = new Date(y1, m1 - 1, d1);
-            const date2 = new Date(y2, m2 - 1, d2);
-            return Math.round((date1 - date2) / (1000 * 60 * 60 * 24));
-        }
-
-        function formatDaysAgo(daysDiff) {
-            if (daysDiff === 0) return "today";
-            if (daysDiff === 1) return "yesterday";
-            return `${daysDiff} days ago`;
+            return Math.round((new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2)) / 86400000);
         }
 
         function formatPace(durationMin, distanceKm) {
@@ -669,17 +656,10 @@
             return `${mins}:${String(secs).padStart(2, '0')}/km`;
         }
 
-        function showError(msg) {
-            const toast = document.getElementById("error-toast");
-            document.getElementById("error-message").innerText = msg;
-            toast.classList.add("show");
-            setTimeout(() => { toast.classList.remove("show"); }, 6000);
-        }
-
         async function updateDashboard() {
             if (!db) return;
             try {
-                const [workoutsSnap, cardioSnap, weightSnap, restDaysSnap, photosSnap] = await Promise.all([
+                const [wSnap, cSnap, bwSnap, rSnap, pSnap] = await Promise.all([
                     getDocs(collection(db, "users", ownerUid, "workouts")),
                     getDocs(collection(db, "users", ownerUid, "cardio")),
                     getDocs(collection(db, "users", ownerUid, "bodyweight")),
@@ -687,275 +667,81 @@
                     getDocs(collection(db, "users", ownerUid, "photoslots"))
                 ]);
 
-                const workouts = workoutsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                const cardio = cardioSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                const bodyweight = weightSnap.docs.map(doc => ({
-                    dateStr: doc.id, weight: parseFloat(doc.data().weight) || parseFloat(doc.data().value)
-                }));
-                const restDays = restDaysSnap.docs.map(doc => doc.id);
+                const workouts = wSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const cardio = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                const bodyweight = bwSnap.docs.map(d => ({ dateStr: d.id, weight: parseFloat(d.data().weight) || 0 }));
+                const restDays = rSnap.docs.map(d => d.id);
+                const photos = pSnap.docs.map(d => ({ ...d.data() })).filter(p => p.base64).sort((a,b) => (b.uploadedAt?.seconds||0) - (a.uploadedAt?.seconds||0));
 
-                const photos = photosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(p => p.base64);
-                photos.sort((a, b) => (b.uploadedAt?.seconds || 0) - (a.uploadedAt?.seconds || 0));
-                const latestPhoto = photos.length > 0 ? photos[0] : null;
-
-                const todayStr = getLocalDateStr();
-                processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr);
+                processDashboardData(workouts, cardio, bodyweight, restDays, photos[0] || null, getLocalDateStr());
 
                 lastUpdatedTime = new Date();
                 fetchFailed = false;
                 updateTimeElapsed();
-                
-                const loader = document.getElementById("loader");
-                if (loader) {
-                    loader.style.opacity = '0';
-                    setTimeout(() => { loader.style.display = 'none'; }, 500);
-                }
+                document.getElementById("loader").style.display = 'none';
             } catch (err) {
-                console.error("Firestore Fetch Error:", err);
+                console.error(err);
                 fetchFailed = true;
                 updateTimeElapsed();
-                // This will print the EXACT reason it is failing to the screen
-                showError(`Error: ${err.message || "Failed to fetch data"}`);
-                const loader = document.getElementById("loader");
-                if (loader) loader.style.display = 'none';
+                document.getElementById("loader").style.display = 'none';
             }
         }
 
         function processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr) {
-            // Safely sort to prevent crashes if a dateStr is missing in the database
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+            
             workouts.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
-            cardio.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
-            bodyweight.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
-            restDays.sort((a, b) => (b || "").localeCompare(a || ""));
-
-            // STREAK
-            const activityDatesSet = new Set();
-            workouts.forEach(w => { if (w.dateStr) activityDatesSet.add(w.dateStr); });
-            cardio.forEach(c => { if (c.dateStr) activityDatesSet.add(c.dateStr); });
-            restDays.forEach(d => { if (d) activityDatesSet.add(d); });
-
-            const activityDates = Array.from(activityDatesSet).sort((a, b) => b.localeCompare(a));
-            let streak = 0;
-            if (activityDates.length > 0) {
-                const latestActivityDate = activityDates[0];
-                const daysSinceLatest = getDaysDifference(todayStr, latestActivityDate);
-                if (daysSinceLatest <= 1) {
-                    streak = 1;
-                    const [ly, lm, ld] = latestActivityDate.split('-').map(Number);
-                    let checkDate = new Date(ly, lm - 1, ld);
-                    while (true) {
-                        checkDate.setDate(checkDate.getDate() - 1);
-                        const checkDateStr = getLocalDateStr(checkDate);
-                        if (activityDatesSet.has(checkDateStr)) streak++;
-                        else break;
-                    }
-                }
-            }
-            document.getElementById("streak-display").innerText = `${streak} ${streak === 1 ? 'day' : 'days'}${streak > 3 ? ' 🔥' : ''}`;
-
-            // LAST WORKOUT
-            const workoutDisplay = document.getElementById("workout-display");
-            const latestRestDayDate = restDays.length > 0 ? restDays[0] : null;
-            const latestWorkoutDate = workouts.length > 0 ? workouts[0].dateStr : null;
-            const latestCardioDate = cardio.length > 0 ? cardio[0].dateStr : null;
             
-            const isRestDayMostRecent = latestRestDayDate && 
-                (!latestWorkoutDate || latestRestDayDate >= latestWorkoutDate) && 
-                (!latestCardioDate || latestRestDayDate >= latestCardioDate);
-                
+            // Streak
+            const activityDates = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr), ...restDays]);
+            let streak = 0, check = new Date();
+            while (activityDates.has(getLocalDateStr(check))) { streak++; check.setDate(check.getDate() - 1); }
+            setVal("streak-display", `${streak} day${streak===1?'':'s'}${streak>3?' 🔥':''}`);
+
+            // Metrics
             if (workouts.length > 0) {
-                const latestWorkout = workouts[0];
-                const daysAgo = getDaysDifference(todayStr, latestWorkout.dateStr);
-                if (daysAgo >= 3) {
-                    workoutDisplay.innerHTML = isRestDayMostRecent ? `<span class="workout-rest-text">Rest day 🛌</span>` : `<span class="workout-rest-text">Taking a rest 😴</span>`;
-                } else {
-                    const musclesTrained = Array.isArray(latestWorkout.muscles) && latestWorkout.muscles.length > 0 ? latestWorkout.muscles.join(" & ") : "General Workout";
-                    workoutDisplay.innerText = `${musclesTrained} · ${formatDaysAgo(daysAgo)}`;
-                }
-            } else {
-                workoutDisplay.innerHTML = isRestDayMostRecent ? `<span class="workout-rest-text">Rest day 🛌</span>` : "No workouts logged";
+                const w = workouts[0];
+                const muscles = (w.muscles || []).join(" & ");
+                setVal("workout-display", `${muscles || "Workout"} · ${getDaysDifference(todayStr, w.dateStr)} days ago`);
             }
+            const runs = cardio.filter(c => (c.cardioType || "").toLowerCase().includes("run"));
+            if (runs.length > 0) setVal("run-display", `${runs[0].distanceKm} km · ${getDaysDifference(todayStr, runs[0].dateStr)} days ago`);
+            if (bodyweight.length > 0) setVal("weight-display", `${bodyweight[0].weight.toFixed(1)} kg`);
 
-            // LAST RUN
-            const runDisplay = document.getElementById("run-display");
-            const runningWorkouts = cardio.filter(c => !c.cardioType || c.cardioType.toLowerCase().includes('run'));
-            if (runningWorkouts.length > 0) {
-                const latestRun = runningWorkouts[0];
-                const daysAgo = getDaysDifference(todayStr, latestRun.dateStr);
-                const distanceVal = parseFloat(latestRun.distanceKm) || 0;
-                const durationVal = parseFloat(latestRun.durationMin) || 0;
-                runDisplay.innerText = `${distanceVal.toFixed(1)} km · ${formatPace(durationVal, distanceVal)} · ${formatDaysAgo(daysAgo)}`;
-            } else {
-                runDisplay.innerText = "No runs logged yet";
-            }
-
-            // WEIGHT
-            const weightDisplay = document.getElementById("weight-display");
-            const weightChartSub = document.getElementById("weight-chart-sub");
-            if (bodyweight.length > 0) {
-                const currentWeightVal = bodyweight[0].weight;
-                const target30DaysAgoDate = new Date(bodyweight[0].dateStr + 'T00:00:00');
-                target30DaysAgoDate.setDate(target30DaysAgoDate.getDate() - 30);
-                const target30DaysAgoStr = getLocalDateStr(target30DaysAgoDate);
-                
-                let weight30DaysAgo = null;
-                let minDiff = Infinity;
-                bodyweight.forEach(w => {
-                    const diff = Math.abs(getDaysDifference(w.dateStr, target30DaysAgoStr));
-                    if (diff < minDiff) { minDiff = diff; weight30DaysAgo = w.weight; }
-                });
-
-                let diffText = "";
-                if (weight30DaysAgo !== null) {
-                    const diff = currentWeightVal - weight30DaysAgo;
-                    if (diff > 0) diffText = ` · +${diff.toFixed(1)} kg this month`;
-                    else if (diff < 0) diffText = ` · −${Math.abs(diff).toFixed(1)} kg this month`;
-                    else diffText = ` · 0.0 kg this month`;
-                }
-                weightDisplay.innerText = `${currentWeightVal.toFixed(1)} kg${diffText}`;
-                if (weightChartSub) weightChartSub.innerText = `${currentWeightVal.toFixed(1)} kg`;
-            } else {
-                weightDisplay.innerText = "No bodyweight logged";
-                if (weightChartSub) weightChartSub.innerText = "— kg";
-            }
-
-            // WEIGHT CHART
-            const weightChartData = [...bodyweight].slice(0, 60).reverse();
-            const weightLabels = weightChartData.map(w => {
-                const [y, m, d] = w.dateStr.split('-').map(Number);
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return `${months[m - 1]} ${d}`;
-            });
-            const weightValues = weightChartData.map(w => w.weight);
-            renderWeightChart(weightLabels, weightValues);
-
-            // PR NOTIFICATION (Targets Most Recent Workout)
-            const prs = {};
-            const reversedWorkouts = [...workouts].reverse();
-            for (const w of reversedWorkouts) {
-                for (const e of (w.exercises || [])) {
-                    for (const s of (e.sets || [])) {
-                        const weight = Number(s.weight) || 0, reps = Number(s.reps) || 0;
-                        if (weight <= 0 || reps <= 0) continue;
-                        const est1rm = weight * (1 + reps/30);
-                        const cur = prs[e.exerciseId];
-                        if (!cur || weight > cur.maxWeight) {
-                            prs[e.exerciseId] = {
-                                exerciseName: e.name, maxWeight: cur ? Math.max(cur.maxWeight, weight) : weight,
-                                est1rm: cur ? Math.max(cur.est1rm, est1rm) : est1rm, dateStr: w.dateStr
-                            };
-                        } else if (est1rm > cur.est1rm) {
-                            cur.est1rm = est1rm;
-                        }
-                    }
-                }
-            }
-
+            // PRs
             const prSection = document.getElementById("pr-notification-section");
-            const recentPRs = latestWorkoutDate ? Object.values(prs).filter(pr => pr.dateStr === latestWorkoutDate) : [];
-            
-            if (prSection) {
-                if (recentPRs.length > 0) {
+            const latestDate = workouts.length > 0 ? workouts[0].dateStr : null;
+            if (prSection && latestDate) {
+                const prs = workouts.filter(w => w.dateStr === latestDate).flatMap(w => w.exercises || []);
+                if (prs.length > 0) {
                     prSection.style.display = "flex";
-                    document.getElementById("pr-header-text").textContent = latestWorkoutDate === todayStr ? "New PR Hit Today!" : "New PR in Last Session!";
-                    const prList = recentPRs.map(pr => `
-                        <div style="background:rgba(255,255,255,0.04); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:500; font-size:14px; color:var(--text-white);">${pr.exerciseName}</span>
-                            <span style="color:var(--accent-amber); font-family:var(--font-heading); font-size:15px; font-weight:700;">${pr.maxWeight} kg</span>
-                        </div>`).join("");
-                    document.getElementById("pr-list-container").innerHTML = prList;
-                } else {
-                    prSection.style.display = "none";
-                    document.getElementById("pr-list-container").innerHTML = "";
-                }
+                    document.getElementById("pr-list-container").innerHTML = prs.map(p => `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><span>${Math.max(...p.sets.map(s=>s.weight))} kg</span></div>`).join("");
+                } else { prSection.style.display = "none"; }
             }
 
-            // GYM PHOTO
+            // Photo
             const photoCard = document.getElementById("photo-card");
-            const gymPhoto = document.getElementById("gym-photo");
-            const photoLabel = document.getElementById("photo-label");
-            
             if (photoCard && latestPhoto) {
                 photoCard.style.display = "block";
-                const daysDiff = getDaysDifference(todayStr, latestPhoto.dateStr);
-                let labelText = daysDiff === 0 ? "📸 Today" : (daysDiff === 1 ? "📸 Yesterday" : `📸 ${daysDiff} days ago`);
-                photoLabel.innerText = labelText;
-                setTimeout(() => {
-                    gymPhoto.src = latestPhoto.base64.startsWith("data:") ? latestPhoto.base64 : "data:image/jpeg;base64," + latestPhoto.base64;
-                }, 100);
-            } else if (photoCard) {
-                photoCard.style.display = "none";
-                if(gymPhoto) gymPhoto.src = "";
+                document.getElementById("gym-photo").src = latestPhoto.base64.startsWith("data:") ? latestPhoto.base64 : "data:image/jpeg;base64," + latestPhoto.base64;
             }
-        }
-
-        function renderWeightChart(labels, data) {
-            const canvas = document.getElementById('weightChart');
-            if(!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (weightChartInstance) weightChartInstance.destroy();
-
-            const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-            gradient.addColorStop(0, 'rgba(226, 114, 42, 0.2)');
-            gradient.addColorStop(1, 'rgba(226, 114, 42, 0.00)');
-
-            weightChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data, borderColor: '#E2722A', borderWidth: 2.5, backgroundColor: gradient,
-                        fill: true, tension: 0.35, pointRadius: 0, pointHoverRadius: 5,
-                        pointHoverBackgroundColor: '#E2722A', pointHoverBorderColor: '#FFFFFF', pointHoverBorderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1B2128', displayColors: false, callbacks: { label: (c) => `${c.parsed.y.toFixed(1)} kg` } } },
-                    scales: {
-                        x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 10 }, color: '#6C727A', maxTicksLimit: 6 } },
-                        y: { grid: { color: 'rgba(27, 33, 40, 0.04)' }, ticks: { font: { family: 'Inter', size: 10 }, color: '#6C727A', maxTicksLimit: 5 } }
-                    }
-                }
-            });
         }
 
         function updateTimeElapsed() {
-            const textEl = document.getElementById("update-time-text");
-            if (fetchFailed) { textEl.innerText = "Update Failed ⚠️"; return; }
-            if (!lastUpdatedTime) { textEl.innerText = "Connecting..."; return; }
-            const diffMins = Math.floor((new Date() - lastUpdatedTime) / 60000);
-            textEl.innerText = diffMins < 1 ? "Updated just now" : (diffMins === 1 ? "Updated 1 min ago" : `Updated ${diffMins} mins ago`);
+            const el = document.getElementById("update-time-text");
+            if (el) el.innerText = fetchFailed ? "Update Failed ⚠️" : "Updated just now";
         }
 
-        // COMMENT SUBMISSION
-        const sendBtn = document.getElementById("send-comment-btn");
-        if (sendBtn) {
-            sendBtn.addEventListener("click", async () => {
-                const input = document.getElementById("partner-comment-input");
-                const text = input.value.trim();
-                if (!text) return;
-
-                const originalText = sendBtn.innerText;
-                sendBtn.innerText = "Sending...";
-                sendBtn.disabled = true;
-
-                try {
-                    await setDoc(doc(db, "users", ownerUid, "meta", "partnerComment"), { text: text, timestamp: new Date().toISOString() });
-                    input.value = "";
-                    sendBtn.innerText = "Sent! ✓";
-                    setTimeout(() => { sendBtn.innerText = originalText; sendBtn.disabled = false; }, 2500);
-                } catch (err) {
-                    showError("Failed to send comment.");
-                    sendBtn.innerText = originalText;
-                    sendBtn.disabled = false;
-                }
-            });
-        }
+        document.getElementById("send-comment-btn")?.addEventListener("click", async () => {
+            const text = document.getElementById("partner-comment-input").value;
+            if (text) {
+                await setDoc(doc(db, "users", ownerUid, "meta", "partnerComment"), { text, timestamp: new Date().toISOString() });
+                alert("Sent!");
+            }
+        });
 
         updateDashboard();
-        setInterval(updateDashboard, 180000);
-        setInterval(updateTimeElapsed, 10000);
+        setInterval(updateDashboard, 60000);
     </script>
 </body>
 </html>
