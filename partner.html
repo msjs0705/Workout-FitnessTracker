@@ -931,7 +931,12 @@
 
             // 8. PERSONAL RECORDS (PR) NOTIFICATION
             const prs = {};
-            const reversedWorkouts = [...workouts].reverse(); // Process oldest to newest
+            const reversedWorkouts = [...workouts].reverse();
+            let latestWorkoutDate = null;
+            if (workouts.length > 0) {
+                latestWorkoutDate = workouts[0].dateStr;
+            }
+
             for (const w of reversedWorkouts) {
                 for (const e of (w.exercises || [])) {
                     for (const s of (e.sets || [])) {
@@ -953,12 +958,15 @@
                 }
             }
 
-            const todaysPRs = Object.values(prs).filter(pr => pr.dateStr === todayStr);
+            const recentPRs = Object.values(prs).filter(pr => pr.dateStr === latestWorkoutDate);
             const prSection = document.getElementById("pr-notification-section");
             
-            if (todaysPRs.length > 0) {
+            if (recentPRs.length > 0 && latestWorkoutDate) {
+                const headerText = latestWorkoutDate === todayStr ? "New PR Hit Today!" : "New PR in Last Session!";
                 prSection.style.display = "flex";
-                const prList = todaysPRs.map(pr => `
+                prSection.querySelector("span:nth-child(2)").textContent = headerText;
+
+                const prList = recentPRs.map(pr => `
                     <div style="background:rgba(255,255,255,0.04); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                         <span style="font-weight:500; font-size:14px; color:var(--text-white);">${pr.exerciseName}</span>
                         <span style="color:var(--accent-amber); font-family:var(--font-heading); font-size:15px; font-weight:700;">${pr.maxWeight} kg</span>
