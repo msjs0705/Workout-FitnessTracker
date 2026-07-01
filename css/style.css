@@ -482,17 +482,13 @@ section + section{ margin-top: 34px; }
   color: var(--ink-faint); text-align:center; padding-bottom: 4px;
 }
 .cal-day {
-  min-height: 72px;
+  min-height: 85px;
   border-radius: 10px;
-  display: flex; 
-  flex-direction: column; 
-  align-items: flex-start; 
-  justify-content: flex-start;
-  font-size: 10px;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
   background: var(--paper-dim);
   position: relative;
   color: var(--ink-soft);
-  padding: 5px 5px 14px; /* extra bottom padding for cardio dot */
+  padding: 6px 6px 16px;
   cursor: pointer;
 }
 .cal-day .cal-num{
@@ -502,12 +498,9 @@ section + section{ margin-top: 34px; }
 .cal-day.has-workout{ background: var(--navy); color: var(--on-navy); }
 .cal-day.has-workout .cal-num{ color: var(--on-navy-soft); }
 .cal-day .cal-muscles {
-  font-family: var(--font-mono); 
-  font-size: 8px;
-  text-transform: uppercase; 
-  letter-spacing: 0.02em;
-  color: var(--amber); 
-  line-height: 1.2; 
+  font-family: var(--font-mono); font-size: 8.5px;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  color: var(--amber); line-height: 1.3;
   white-space: normal;
   word-wrap: break-word;
   width: 100%;
