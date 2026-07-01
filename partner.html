@@ -529,6 +529,14 @@
             </div>
         </div>
 
+        <div id="pr-notification-section" class="status-card" style="display: none; padding: 20px 24px; border: 1px solid var(--accent-amber); background: linear-gradient(145deg, rgba(226, 114, 42, 0.1) 0%, var(--card-navy) 100%);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                <span style="font-size: 22px;">🏆</span>
+                <span style="font-family: var(--font-heading); font-size: 16px; font-weight: 700; color: var(--accent-amber); text-transform: uppercase; letter-spacing: 1px;">New PR Hit Today!</span>
+            </div>
+            <div id="pr-list-container" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+
         <!-- CURRENT STATUS CARD -->
         <div class="status-card">
             <!-- Streak -->
@@ -590,20 +598,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Muscle Recovery Strip -->
-            <div class="recovery-section">
-                <div class="recovery-title-container">
-                    <span class="recovery-title">Muscle Recovery</span>
-                    <div class="recovery-legend">
-                        <div class="legend-item"><span class="legend-dot ready"></span><span>Ready</span></div>
-                        <div class="legend-item"><span class="legend-dot recovering"></span><span>Recovering</span></div>
-                    </div>
-                </div>
-                <div class="recovery-grid" id="recovery-grid-display">
-                    <!-- Loaded dynamically -->
-                </div>
-            </div>
         </div>
 
         <!-- WEIGHT TREND CHART -->
@@ -614,17 +608,6 @@
             </div>
             <div class="chart-wrapper">
                 <canvas id="weightChart"></canvas>
-            </div>
-        </div>
-
-        <!-- CARDIO CHART -->
-        <div class="chart-card">
-            <div class="chart-header">
-                <span class="chart-title">Running</span>
-                <span class="chart-subtitle" id="cardio-chart-sub">— km this month</span>
-            </div>
-            <div class="chart-wrapper" id="cardio-chart-wrapper">
-                <canvas id="cardioChart"></canvas>
             </div>
         </div>
     </div>
@@ -936,59 +919,6 @@
                 weightChartSub.innerText = "— kg";
             }
 
-            // 5. MUSCLE RECOVERY STRIP
-            const targetMuscles = [
-                { name: "Chest", target: 2 },
-                { name: "Back", target: 3 },
-                { name: "Shoulder", target: 2 },
-                { name: "Bicep", target: 2 },
-                { name: "Tricep", target: 2 },
-                { name: "Legs", target: 3 },
-                { name: "Forearm", target: 1 },
-                { name: "Abs", target: 1 }
-            ];
-
-            const recoveryGrid = document.getElementById("recovery-grid-display");
-            recoveryGrid.innerHTML = "";
-
-            targetMuscles.forEach(m => {
-                let lastTrainedDateStr = null;
-                for (const w of workouts) {
-                    if (Array.isArray(w.muscles)) {
-                        const containsMuscle = w.muscles.some(dbMuscle => matchesMuscle(dbMuscle, m.name));
-                        if (containsMuscle) {
-                            lastTrainedDateStr = w.dateStr;
-                            break;
-                        }
-                    }
-                }
-
-                let daysSinceTrained = Infinity;
-                if (lastTrainedDateStr) {
-                    daysSinceTrained = getDaysDifference(todayStr, lastTrainedDateStr);
-                }
-
-                const daysLeftToRecover = m.target - daysSinceTrained;
-                const isReady = daysLeftToRecover <= 0;
-
-                const muscleEl = document.createElement("div");
-                muscleEl.className = "muscle-item";
-
-                let statusBadgeHTML = "";
-                if (isReady) {
-                    statusBadgeHTML = `<span class="muscle-status ready">Ready to train</span>`;
-                } else {
-                    const daysLeftStr = daysLeftToRecover === 1 ? "1d left" : `${daysLeftToRecover}d left`;
-                    statusBadgeHTML = `<span class="muscle-status recovering">Recovering (${daysLeftStr})</span>`;
-                }
-
-                muscleEl.innerHTML = `
-                    <span class="muscle-name">${m.name}</span>
-                    ${statusBadgeHTML}
-                `;
-                recoveryGrid.appendChild(muscleEl);
-            });
-
             // 6. WEIGHT TREND LINE CHART (last 60 entries)
             const weightChartData = [...bodyweight].slice(0, 60).reverse();
             const weightLabels = weightChartData.map(w => {
@@ -999,43 +929,46 @@
             const weightValues = weightChartData.map(w => w.weight);
             renderWeightChart(weightLabels, weightValues);
 
-            // 7. CARDIO CHART (weekly running, last 12 weeks)
-            const cardioChartSub = document.getElementById("cardio-chart-sub");
-            const runningThisMonthKm = getRunningThisMonthDistance(cardio, todayStr);
-            cardioChartSub.innerText = `${runningThisMonthKm.toFixed(1)} km this month`;
-
-            const hasCardio = runningWorkouts.length > 0;
-            const wrapper = document.getElementById("cardio-chart-wrapper");
-            
-            if (!hasCardio) {
-                wrapper.innerHTML = `
-                    <div class="cardio-placeholder">
-                        <span class="cardio-placeholder-icon">🏃‍♂️</span>
-                        <span class="cardio-placeholder-text">No runs logged yet</span>
-                    </div>
-                `;
-            } else {
-                wrapper.innerHTML = `<canvas id="cardioChart"></canvas>`;
-                
-                const weeks = getWeeklyIntervals(new Date());
-                
-                runningWorkouts.forEach(c => {
-                    const [y, m, d] = c.dateStr.split('-').map(Number);
-                    const runDate = new Date(y, m - 1, d);
-                    
-                    for (const week of weeks) {
-                        if (runDate >= week.start && runDate <= week.end) {
-                            week.distance += (parseFloat(c.distanceKm) || 0);
-                            break;
+            // 8. PERSONAL RECORDS (PR) NOTIFICATION
+            const prs = {};
+            const reversedWorkouts = [...workouts].reverse(); // Process oldest to newest
+            for (const w of reversedWorkouts) {
+                for (const e of (w.exercises || [])) {
+                    for (const s of (e.sets || [])) {
+                        const weight = Number(s.weight) || 0, reps = Number(s.reps) || 0;
+                        if (weight <= 0 || reps <= 0) continue;
+                        const est1rm = weight * (1 + reps/30);
+                        const cur = prs[e.exerciseId];
+                        if (!cur || weight > cur.maxWeight) {
+                            prs[e.exerciseId] = {
+                                exerciseName: e.name,
+                                maxWeight: cur ? Math.max(cur.maxWeight, weight) : weight,
+                                est1rm: cur ? Math.max(cur.est1rm, est1rm) : est1rm,
+                                dateStr: w.dateStr
+                            };
+                        } else if (est1rm > cur.est1rm) {
+                            cur.est1rm = est1rm;
                         }
                     }
-                });
-
-                const cardioLabels = weeks.map(w => w.label);
-                const cardioValues = weeks.map(w => w.distance);
-                renderCardioChart(cardioLabels, cardioValues);
+                }
             }
 
+            const todaysPRs = Object.values(prs).filter(pr => pr.dateStr === todayStr);
+            const prSection = document.getElementById("pr-notification-section");
+            
+            if (todaysPRs.length > 0) {
+                prSection.style.display = "flex";
+                const prList = todaysPRs.map(pr => `
+                    <div style="background:rgba(255,255,255,0.04); padding:10px 14px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:500; font-size:14px; color:var(--text-white);">${pr.exerciseName}</span>
+                        <span style="color:var(--accent-amber); font-family:var(--font-heading); font-size:15px; font-weight:700;">${pr.maxWeight} kg</span>
+                    </div>`).join("");
+                document.getElementById("pr-list-container").innerHTML = prList;
+            } else {
+                prSection.style.display = "none";
+                document.getElementById("pr-list-container").innerHTML = "";
+            }
+            
             // 8. GYM PHOTO SECTION
             const photoCard = document.getElementById("photo-card");
             const gymPhoto = document.getElementById("gym-photo");
