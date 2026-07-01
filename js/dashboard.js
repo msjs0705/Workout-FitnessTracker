@@ -51,13 +51,24 @@ function renderRecommendation(workouts){
     wrap.innerHTML = `<div class="recommend-card"><div><div class="rc-label">Recovery status</div><div class="rc-muscle">Everything's still recovering</div></div></div>`;
     return;
   }
+  
+  // Sort by days since trained (longest rest first)
   ready.sort((a,b) => (b[1].daysSince ?? 999) - (a[1].daysSince ?? 999));
-  const [muscle, info] = ready[0];
-  const sub = info.status === 'never' ? "Never trained — perfect day to start" : `Last trained ${info.daysSince} day${info.daysSince!==1?'s':''} ago`;
-  wrap.innerHTML = `<div class="recommend-card">
-    <div><div class="rc-label">Recommended today</div><div class="rc-muscle">${muscle}</div></div>
-    <div class="label" style="text-align:right;max-width:140px;">${sub}</div>
-  </div>`;
+  
+  // Take top 3
+  const top3 = ready.slice(0, 3);
+  const musclesHtml = top3.map(([muscle, info]) => {
+    const sub = info.status === 'never' ? "Never trained" : `Trained ${info.daysSince}d ago`;
+    return `<div style="flex:1; min-width:80px;"><div class="rc-muscle">${muscle}</div><div class="label" style="text-transform:none; margin-top:4px;">${sub}</div></div>`;
+  }).join("");
+
+  wrap.innerHTML = `
+    <div class="recommend-card" style="flex-direction:column; align-items:flex-start; gap:12px;">
+      <div class="rc-label" style="width:100%; border-bottom:1px solid rgba(154, 90, 34, 0.2); padding-bottom:8px; margin-bottom:2px;">Recommended today</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; width:100%; justify-content:space-between;">
+        ${musclesHtml}
+      </div>
+    </div>`;
 }
 
 function renderRecovery(workouts){
@@ -85,7 +96,8 @@ function renderWeekStats(workouts, cardio, weights){
   const latestWeight = weights.length ? weights[weights.length-1].weight : null;
 
   const tiles = document.querySelectorAll("#weekStats .stat-tile .val");
-  tiles[0].textContent = weekWorkouts.length;
+  // Total active sessions (Workouts + Cardio) - strictly excludes Rest Days
+  tiles[0].textContent = weekWorkouts.length + weekCardio.length;
   tiles[1].textContent = totalKm.toFixed(1);
   tiles[2].textContent = totalSets;
   tiles[3].textContent = latestWeight !== null ? latestWeight : "—";
