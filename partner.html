@@ -135,7 +135,6 @@
             overflow: hidden;
         }
 
-        /* Subtle background glow for aesthetics */
         .status-card::before {
             content: '';
             position: absolute;
@@ -174,7 +173,6 @@
             gap: 6px;
         }
 
-        /* Status metrics */
         .metrics-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -239,7 +237,6 @@
             color: var(--text-white-muted);
         }
 
-        /* Muscle Recovery Section */
         .recovery-section {
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             padding-top: 24px;
@@ -336,7 +333,6 @@
             background-color: rgba(248, 113, 113, 0.1);
         }
 
-        /* CHARTS SECTION */
         .chart-card {
             background-color: #FFFFFF;
             border-radius: var(--border-radius-lg);
@@ -384,7 +380,6 @@
             width: 100%;
         }
 
-        /* Placeholder for Empty Cardio */
         .cardio-placeholder {
             display: flex;
             flex-direction: column;
@@ -406,7 +401,6 @@
             font-weight: 500;
         }
 
-        /* FULL PAGE LOADING SCREEN */
         #loader {
             position: fixed;
             top: 0;
@@ -444,7 +438,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* ERROR TOAST */
         #error-toast {
             position: fixed;
             bottom: 24px;
@@ -468,7 +461,6 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        /* RESPONSIVE LAYOUT adjustments */
         @media (max-width: 480px) {
             .recovery-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -613,7 +605,6 @@
     </div>
 
     <!-- MAIN FIREBASE MODULE JS -->
-    <!-- MAIN FIREBASE MODULE JS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -697,9 +688,22 @@
             cardio.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
             
             // 1. STREAK
+            // Rest days count as "active" days for streak purposes (already included below).
+            // FIX: previously this always started counting from *today*, so if today has
+            // no logged activity yet, the loop exited immediately and the whole streak
+            // showed as 0 -- even if yesterday extended a 12-13 day streak.
+            // Now: if today isn't logged yet, start the count from yesterday instead,
+            // so an ongoing streak isn't wiped out just because today hasn't happened yet.
             const activityDates = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr), ...restDays]);
-            let streak = 0, check = new Date();
-            while (activityDates.has(getLocalDateStr(check))) { streak++; check.setDate(check.getDate() - 1); }
+            let streak = 0;
+            let check = new Date();
+            if (!activityDates.has(getLocalDateStr(check))) {
+                check.setDate(check.getDate() - 1);
+            }
+            while (activityDates.has(getLocalDateStr(check))) {
+                streak++;
+                check.setDate(check.getDate() - 1);
+            }
             setVal("streak-display", `${streak} day${streak===1?'':'s'}${streak>3?' 🔥':''}`);
 
             // 2. LAST WORKOUT (Displays muscles and days ago)
@@ -716,10 +720,27 @@
             } else { setVal("run-display", "No runs logged yet"); }
 
             // 4. WEIGHT
-            if (bodyweight.length > 0) {
-                const w = bodyweight.sort((a,b) => b.dateStr.localeCompare(a.dateStr))[0];
-                setVal("weight-display", `${w.weight.toFixed(1)} kg`);
-            } else { setVal("weight-display", "— kg"); }
+            const sortedBodyweight = [...bodyweight].sort((a,b) => a.dateStr.localeCompare(b.dateStr));
+            if (sortedBodyweight.length > 0) {
+                const latestW = sortedBodyweight[sortedBodyweight.length - 1];
+                setVal("weight-display", `${latestW.weight.toFixed(1)} kg`);
+
+                // FIX: renderWeightChart() was defined but never called anywhere,
+                // so the Weight chart card was always empty. Wire it up here.
+                const labels = sortedBodyweight.map(b => {
+                    const [y, m, d] = b.dateStr.split('-');
+                    return `${m}/${d}`;
+                });
+                const data = sortedBodyweight.map(b => b.weight);
+                renderWeightChart(labels, data);
+
+                const minW = Math.min(...data).toFixed(1);
+                const maxW = Math.max(...data).toFixed(1);
+                setVal("weight-chart-sub", minW === maxW ? `${latestW.weight.toFixed(1)} kg` : `${minW}–${maxW} kg`);
+            } else {
+                setVal("weight-display", "— kg");
+                setVal("weight-chart-sub", "— kg");
+            }
 
             // 5. PR NOTIFICATION
             const prSection = document.getElementById("pr-notification-section");
