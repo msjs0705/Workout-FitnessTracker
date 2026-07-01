@@ -613,6 +613,7 @@
     </div>
 
     <!-- MAIN FIREBASE MODULE JS -->
+    <!-- MAIN FIREBASE MODULE JS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -636,6 +637,7 @@
 
         let weightChartInstance = null;
         let lastUpdatedTime = null;
+        let fetchFailed = false;
 
         function getLocalDateStr(date = new Date()) {
             const year = date.getFullYear();
@@ -645,6 +647,7 @@
         }
 
         function getDaysDifference(d1Str, d2Str) {
+            if (!d1Str || !d2Str) return 0;
             const [y1, m1, d1] = d1Str.split('-').map(Number);
             const [y2, m2, d2] = d2Str.split('-').map(Number);
             const date1 = new Date(y1, m1 - 1, d1);
@@ -699,6 +702,7 @@
                 processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr);
 
                 lastUpdatedTime = new Date();
+                fetchFailed = false;
                 updateTimeElapsed();
                 
                 const loader = document.getElementById("loader");
@@ -708,17 +712,21 @@
                 }
             } catch (err) {
                 console.error("Firestore Fetch Error:", err);
-                showError("Could not refresh data. Check connection.");
+                fetchFailed = true;
+                updateTimeElapsed();
+                // This will print the EXACT reason it is failing to the screen
+                showError(`Error: ${err.message || "Failed to fetch data"}`);
                 const loader = document.getElementById("loader");
                 if (loader) loader.style.display = 'none';
             }
         }
 
         function processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr) {
-            workouts.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-            cardio.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-            bodyweight.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-            restDays.sort((a, b) => b.localeCompare(a));
+            // Safely sort to prevent crashes if a dateStr is missing in the database
+            workouts.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
+            cardio.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
+            bodyweight.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
+            restDays.sort((a, b) => (b || "").localeCompare(a || ""));
 
             // STREAK
             const activityDatesSet = new Set();
@@ -914,6 +922,7 @@
 
         function updateTimeElapsed() {
             const textEl = document.getElementById("update-time-text");
+            if (fetchFailed) { textEl.innerText = "Update Failed ⚠️"; return; }
             if (!lastUpdatedTime) { textEl.innerText = "Connecting..."; return; }
             const diffMins = Math.floor((new Date() - lastUpdatedTime) / 60000);
             textEl.innerText = diffMins < 1 ? "Updated just now" : (diffMins === 1 ? "Updated 1 min ago" : `Updated ${diffMins} mins ago`);
