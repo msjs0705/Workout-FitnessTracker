@@ -42,21 +42,28 @@ function renderStreak(workouts, cardio, restDays = []){
     badge.textContent = `🔥 ${streak} day streak`;
   }
 }
+let recommendOffset = 0;
+let readyMuscles = [];
 
 function renderRecommendation(workouts){
   const rec = computeRecovery(workouts, MUSCLE_GROUPS);
-  const ready = Object.entries(rec).filter(([,r]) => r.status === 'ready' || r.status === 'never');
+  readyMuscles = Object.entries(rec).filter(([,r]) => r.status === 'ready' || r.status === 'never');
+  readyMuscles.sort((a,b) => (b[1].daysSince ?? 999) - (a[1].daysSince ?? 999));
+  updateRecommendUI();
+}
+
+function updateRecommendUI(){
   const wrap = document.getElementById("recommendWrap");
-  if (!ready.length){
+  if (!readyMuscles.length){
     wrap.innerHTML = `<div class="recommend-card"><div><div class="rc-label">Recovery status</div><div class="rc-muscle">Everything's still recovering</div></div></div>`;
     return;
   }
   
-  // Sort by days since trained (longest rest first)
-  ready.sort((a,b) => (b[1].daysSince ?? 999) - (a[1].daysSince ?? 999));
-  
-  // Take top 3
-  const top3 = ready.slice(0, 3);
+  const top3 = [];
+  for (let i = 0; i < Math.min(3, readyMuscles.length); i++) {
+    top3.push(readyMuscles[(recommendOffset + i) % readyMuscles.length]);
+  }
+
   const musclesHtml = top3.map(([muscle, info]) => {
     const sub = info.status === 'never' ? "Never trained" : `Trained ${info.daysSince}d ago`;
     return `<div style="flex:1; min-width:80px;"><div class="rc-muscle">${muscle}</div><div class="label" style="text-transform:none; margin-top:4px;">${sub}</div></div>`;
@@ -64,12 +71,21 @@ function renderRecommendation(workouts){
 
   wrap.innerHTML = `
     <div class="recommend-card" style="flex-direction:column; align-items:flex-start; gap:12px;">
-      <div class="rc-label" style="width:100%; border-bottom:1px solid rgba(154, 90, 34, 0.2); padding-bottom:8px; margin-bottom:2px;">Recommended today</div>
+      <div class="rc-label" style="width:100%; border-bottom:1px solid rgba(154, 90, 34, 0.2); padding-bottom:8px; margin-bottom:2px; display:flex; justify-content:space-between; align-items:center;">
+        Recommended today
+        <button id="skipRecommendBtn" class="btn btn-ghost btn-sm" style="padding:4px 8px; font-size:10px; height:auto; min-width:auto; color:var(--amber); border-color:rgba(226,114,42,0.3);">Skip ↻</button>
+      </div>
       <div style="display:flex; gap:12px; flex-wrap:wrap; width:100%; justify-content:space-between;">
         ${musclesHtml}
       </div>
     </div>`;
+
+  document.getElementById("skipRecommendBtn").addEventListener("click", () => {
+    recommendOffset++;
+    updateRecommendUI();
+  });
 }
+
 
 function renderRecovery(workouts){
   const rec = computeRecovery(workouts, MUSCLE_GROUPS);
