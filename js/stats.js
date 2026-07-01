@@ -14,8 +14,7 @@ requireAuth(async (user) => {
   renderHeatmap(workouts, cardio, restDays);
   renderCardioChart(cardio);
   renderMuscleChart(workouts);
-  renderProgression(workouts);
-  renderPRs(prs);
+  renderPRs(prs,workouts);
 });
 
 function renderStreak(workouts, cardio, restDays = []){
@@ -90,57 +89,103 @@ function renderMuscleChart(workouts){
   });
 }
 
-let progressChart;
-function renderProgression(workouts){
-  const sel = document.getElementById("progressExercise");
-  const exerciseMap = {}; // id -> { name, points: [{dateStr, maxWeight}] }
-  for (const w of [...workouts].reverse()){ // ascending date order for the chart
-    for (const e of (w.exercises||[])){
-      const maxW = Math.max(...(e.sets||[]).map(s => Number(s.weight)||0), 0);
-      if (!maxW) continue;
-      if (!exerciseMap[e.exerciseId]) exerciseMap[e.exerciseId] = { name: e.name, points: [] };
-      exerciseMap[e.exerciseId].points.push({ dateStr: w.dateStr, maxWeight: maxW });
-    }
-  }
-  const ids = Object.keys(exerciseMap).sort((a,b) => exerciseMap[a].name.localeCompare(exerciseMap[b].name));
-  if (!ids.length){
-    sel.style.display = "none";
-    document.getElementById("progressChart").parentElement.insertAdjacentHTML("beforeend", `<div class="empty" style="border:none;">No exercise data yet.</div>`);
-    return;
-  }
-  sel.innerHTML = ids.map(id => `<option value="${id}">${exerciseMap[id].name}</option>`).join("");
-  sel.addEventListener("change", () => draw(sel.value));
-  draw(ids[0]);
-
-  function draw(id){
-    const data = exerciseMap[id];
-    const ctx = document.getElementById("progressChart");
-    const chartData = {
-      labels: data.points.map(p => p.dateStr),
-      datasets: [{ label:"Top weight (kg)", data: data.points.map(p => p.maxWeight), borderColor:"#E2722A", backgroundColor:"rgba(226,114,42,0.12)", pointBackgroundColor:"#1B2128", tension:0.25, fill:true }]
-    };
-    if (progressChart){ progressChart.data = chartData; progressChart.update(); return; }
-    progressChart = new Chart(ctx, {
-      type:"line", data: chartData,
-      options: { plugins:{ legend:{ display:false } }, scales: {
-        x: { ticks:{ font:{family:"IBM Plex Mono", size:10}, maxTicksLimit:6 }, grid:{display:false} },
-        y: { ticks:{ font:{family:"IBM Plex Mono", size:10} }, grid:{color:"#E1DDD2"} }
-      }}
-    });
-  }
-}
-
-function renderPRs(prs){
+function renderPRs(prs, workouts){
   const wrap = document.getElementById("prList");
-  const entries = Object.values(prs).sort((a,b) => a.exerciseName.localeCompare(b.exerciseName));
+  const entries = Object.entries(prs).map(([id, data]) => ({ id, ...data })).sort((a,b) => a.exerciseName.localeCompare(b.exerciseName));
+
   if (!entries.length){
     wrap.innerHTML = `<div class="empty" style="border:none;"><div class="big">No PRs yet</div>Log a few workouts and your records will show up here.</div>`;
     return;
   }
+
+  // Calculate historical progression for all exercises
+  const exerciseMap = {}; 
+  for (const w of [...workouts].reverse()){
+    for (const e of (w.exercises||[])){
+      const maxW = Math.max(...(e.sets||[]).map(s => Number(s.weight)||0), 0);
+      if (!maxW) continue;
+      if (!exerciseMap[e.exerciseId]) exerciseMap[e.exerciseId] = { points: [] };
+      exerciseMap[e.exerciseId].points.push({ dateStr: w.dateStr, maxWeight: maxW });
+    }
+  }
+
+  // Render rows with hidden canvas containers
   wrap.innerHTML = entries.map(e => `
-    <div class="feed-row">
-      <div class="body"><div class="title">${e.exerciseName}</div><div class="meta">est. 1RM ${e.est1rm.toFixed(1)} kg · ${e.dateStr}</div></div>
-      <div class="pill gold">${e.maxWeight} kg</div>
+    <div class="pr-row-container" style="border-bottom: 1px solid var(--line);">
+      <div class="feed-row pr-row" data-id="${e.id}" style="border-bottom:none; cursor:pointer; padding: 14px 4px;">
+        <div class="body">
+          <div class="title" style="display:flex; justify-content:space-between; align-items:center;">
+            ${e.exerciseName}
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--ink-faint); transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="meta">est. 1RM ${e.est1rm.toFixed(1)} kg · ${e.dateStr}</div>
+        </div>
+        <div class="pill gold" style="margin:0 0 0 10px;">${e.maxWeight} kg</div>
+      </div>
+      <div class="pr-chart-wrap" id="chart-wrap-${e.id}" style="display:none; padding: 0 4px 16px 4px;">
+        <div style="height: 180px; width: 100%; position: relative;">
+           <canvas id="canvas-${e.id}"></canvas>
+        </div>
+      </div>
     </div>
   `).join("");
+
+  // Manage click state and chart rendering
+  let activeChart = null;
+  let activeId = null;
+
+  wrap.querySelectorAll(".pr-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const id = row.dataset.id;
+      const wrapDiv = document.getElementById(`chart-wrap-${id}`);
+      const chevron = row.querySelector(".chevron");
+
+      if (activeId === id) {
+         wrapDiv.style.display = "none";
+         chevron.style.transform = "rotate(0deg)";
+         activeId = null;
+         return;
+      }
+
+      if (activeId) {
+         document.getElementById(`chart-wrap-${activeId}`).style.display = "none";
+         document.querySelector(`.pr-row[data-id="${activeId}"] .chevron`).style.transform = "rotate(0deg)";
+      }
+
+      wrapDiv.style.display = "block";
+      chevron.style.transform = "rotate(180deg)";
+      activeId = id;
+
+      if (activeChart) { activeChart.destroy(); }
+      
+      const ctx = document.getElementById(`canvas-${id}`);
+      const data = exerciseMap[id];
+      if (!data || !data.points.length) return;
+
+      activeChart = new Chart(ctx, {
+        type:"line", 
+        data: {
+          labels: data.points.map(p => p.dateStr),
+          datasets: [{ 
+            label:"Top weight (kg)", 
+            data: data.points.map(p => p.maxWeight), 
+            borderColor:"#C9A227", 
+            backgroundColor:"rgba(201,162,39,0.12)", 
+            pointBackgroundColor:"#1B2128", 
+            tension:0.25, 
+            fill:true 
+          }]
+        },
+        options: { 
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins:{ legend:{ display:false } }, 
+          scales: {
+            x: { ticks:{ font:{family:"IBM Plex Mono", size:10}, maxTicksLimit:6 }, grid:{display:false} },
+            y: { ticks:{ font:{family:"IBM Plex Mono", size:10} }, grid:{color:"#E1DDD2"} }
+          }
+        }
+      });
+    });
+  });
 }
