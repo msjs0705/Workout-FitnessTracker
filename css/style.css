@@ -309,48 +309,45 @@ section + section{ margin-top: 34px; }
 
 /* =========================================================
    Signature element — Muscle Recovery Strip
-   A horizontal scroller of muscle "gauges": big mono day-count,
-   colored by readiness. This is the thing the whole app orbits.
    ========================================================= */
 
-.recovery-strip{
-  display:flex; gap: 10px;
-  overflow-x: auto;
+.recovery-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   padding-bottom: 4px;
-  scroll-snap-type: x proximity;
 }
-.gauge{
-  scroll-snap-align: start;
-  flex: 0 0 auto;
-  width: 108px;
+.gauge {
+  width: 100%;
   border-radius: var(--radius-md);
-  padding: 14px 12px;
+  padding: 12px 6px;
   background: var(--navy);
   color: var(--on-navy);
   position: relative;
   overflow: hidden;
+  text-align: center;
 }
-.gauge .muscle-name{
+.gauge .muscle-name {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--on-navy-soft);
 }
-.gauge .days{
+.gauge .days {
   font-family: var(--font-display);
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 700;
-  margin: 8px 0 2px;
+  margin: 6px 0 2px;
   line-height: 1;
 }
-.gauge .status{
-  font-size: 11px;
+.gauge .status {
+  font-size: 9.5px;
   font-weight: 600;
 }
-.gauge::after{
-  content:'';
-  position:absolute; top:0; right:0; bottom:0; width:5px;
+.gauge::after {
+  content: '';
+  position: absolute; top: 0; right: 0; bottom: 0; width: 4px;
 }
 .gauge.ready::after{ background: var(--teal); }
 .gauge.soon::after{ background: var(--gold); }
@@ -359,6 +356,10 @@ section + section{ margin-top: 34px; }
 .gauge.soon .status{ color: var(--gold); }
 .gauge.due .status{ color: #E98276; }
 
+@media (max-width: 380px) {
+  .gauge .days { font-size: 22px; }
+  .gauge .muscle-name { font-size: 9px; }
+}
 /* =========================================================
    Dashboard stat tiles
    ========================================================= */
@@ -498,10 +499,17 @@ section + section{ margin-top: 34px; }
 }
 .cal-day.has-workout{ background: var(--navy); color: var(--on-navy); }
 .cal-day.has-workout .cal-num{ color: var(--on-navy-soft); }
-.cal-day .cal-muscles{
-  font-family: var(--font-mono); font-size: 8px;
-  text-transform: uppercase; letter-spacing: 0.02em;
-  color: var(--amber); line-height: 1.3; word-break: break-word;
+.cal-day .cal-muscles {
+  font-family: var(--font-mono); 
+  font-size: 8px;
+  text-transform: uppercase; 
+  letter-spacing: 0.02em;
+  color: var(--amber); 
+  line-height: 1.3;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cal-day.is-rest{
   background: var(--teal-dim);
