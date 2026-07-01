@@ -633,9 +633,7 @@
         } catch (e) { console.error("Firebase Init Error:", e); }
 
         let weightChartInstance = null;
-        let cardioChartInstance = null;
         let lastUpdatedTime = null;
-        let fetchFailed = false;
 
         function getLocalDateStr(date = new Date()) {
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -646,6 +644,12 @@
             const [y1, m1, d1] = d1Str.split('-').map(Number);
             const [y2, m2, d2] = d2Str.split('-').map(Number);
             return Math.round((new Date(y1, m1 - 1, d1) - new Date(y2, m2 - 1, d2)) / 86400000);
+        }
+
+        function formatDaysAgo(daysDiff) {
+            if (daysDiff === 0) return "today";
+            if (daysDiff === 1) return "yesterday";
+            return `${daysDiff} days ago`;
         }
 
         function formatPace(durationMin, distanceKm) {
@@ -676,60 +680,82 @@
                 processDashboardData(workouts, cardio, bodyweight, restDays, photos[0] || null, getLocalDateStr());
 
                 lastUpdatedTime = new Date();
-                fetchFailed = false;
                 updateTimeElapsed();
                 document.getElementById("loader").style.display = 'none';
             } catch (err) {
-                console.error(err);
-                fetchFailed = true;
-                updateTimeElapsed();
+                console.error("Fetch Error:", err);
                 document.getElementById("loader").style.display = 'none';
             }
         }
 
         function processDashboardData(workouts, cardio, bodyweight, restDays, latestPhoto, todayStr) {
+            // Helper to safely update DOM elements
             const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
             
+            // Safety sorting: ensures missing dates don't crash the script
             workouts.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
+            cardio.sort((a, b) => (b.dateStr || "").localeCompare(a.dateStr || ""));
             
-            // Streak
+            // 1. STREAK
             const activityDates = new Set([...workouts.map(w => w.dateStr), ...cardio.map(c => c.dateStr), ...restDays]);
             let streak = 0, check = new Date();
             while (activityDates.has(getLocalDateStr(check))) { streak++; check.setDate(check.getDate() - 1); }
             setVal("streak-display", `${streak} day${streak===1?'':'s'}${streak>3?' 🔥':''}`);
 
-            // Metrics
+            // 2. LAST WORKOUT (Displays muscles and days ago)
             if (workouts.length > 0) {
                 const w = workouts[0];
                 const muscles = (w.muscles || []).join(" & ");
                 setVal("workout-display", `${muscles || "Workout"} · ${getDaysDifference(todayStr, w.dateStr)} days ago`);
-            }
-            const runs = cardio.filter(c => (c.cardioType || "").toLowerCase().includes("run"));
-            if (runs.length > 0) setVal("run-display", `${runs[0].distanceKm} km · ${getDaysDifference(todayStr, runs[0].dateStr)} days ago`);
-            if (bodyweight.length > 0) setVal("weight-display", `${bodyweight[0].weight.toFixed(1)} kg`);
+            } else { setVal("workout-display", "No workouts logged"); }
 
-            // PRs
+            // 3. LAST RUN (Displays distance and pace)
+            const runs = cardio.filter(c => (c.cardioType || "").toLowerCase().includes("run"));
+            if (runs.length > 0) {
+                setVal("run-display", `${runs[0].distanceKm || 0} km · ${formatPace(runs[0].durationMin, runs[0].distanceKm)} · ${getDaysDifference(todayStr, runs[0].dateStr)} days ago`);
+            } else { setVal("run-display", "No runs logged yet"); }
+
+            // 4. WEIGHT
+            if (bodyweight.length > 0) {
+                const w = bodyweight.sort((a,b) => b.dateStr.localeCompare(a.dateStr))[0];
+                setVal("weight-display", `${w.weight.toFixed(1)} kg`);
+            } else { setVal("weight-display", "— kg"); }
+
+            // 5. PR NOTIFICATION
             const prSection = document.getElementById("pr-notification-section");
             const latestDate = workouts.length > 0 ? workouts[0].dateStr : null;
             if (prSection && latestDate) {
                 const prs = workouts.filter(w => w.dateStr === latestDate).flatMap(w => w.exercises || []);
                 if (prs.length > 0) {
                     prSection.style.display = "flex";
-                    document.getElementById("pr-list-container").innerHTML = prs.map(p => `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><span>${Math.max(...p.sets.map(s=>s.weight))} kg</span></div>`).join("");
+                    document.getElementById("pr-list-container").innerHTML = prs.map(p => 
+                        `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><span>${Math.max(...p.sets.map(s=>Number(s.weight)))} kg</span></div>`
+                    ).join("");
                 } else { prSection.style.display = "none"; }
             }
 
-            // Photo
+            // 6. PHOTO
             const photoCard = document.getElementById("photo-card");
             if (photoCard && latestPhoto) {
                 photoCard.style.display = "block";
-                document.getElementById("gym-photo").src = latestPhoto.base64.startsWith("data:") ? latestPhoto.base64 : "data:image/jpeg;base64," + latestPhoto.base64;
+                const gymPhoto = document.getElementById("gym-photo");
+                if (gymPhoto) gymPhoto.src = latestPhoto.base64.startsWith("data:") ? latestPhoto.base64 : "data:image/jpeg;base64," + latestPhoto.base64;
             }
+        }
+
+        function renderWeightChart(labels, data) {
+            const ctx = document.getElementById('weightChart').getContext('2d');
+            if (weightChartInstance) weightChartInstance.destroy();
+            weightChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: [{ data: data, borderColor: '#E2722A', fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
         }
 
         function updateTimeElapsed() {
             const el = document.getElementById("update-time-text");
-            if (el) el.innerText = fetchFailed ? "Update Failed ⚠️" : "Updated just now";
+            if (el) el.innerText = "Updated just now";
         }
 
         document.getElementById("send-comment-btn")?.addEventListener("click", async () => {
